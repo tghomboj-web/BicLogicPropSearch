@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/BicLogicPropSearch/static/css/main.905fea94.css",
+    "main.js": "/BicLogicPropSearch/static/js/main.a6de1109.js",
+    "index.html": "/BicLogicPropSearch/index.html",
+    "main.905fea94.css.map": "/BicLogicPropSearch/static/css/main.905fea94.css.map",
+    "main.a6de1109.js.map": "/BicLogicPropSearch/static/js/main.a6de1109.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.905fea94.css",
+    "static/js/main.a6de1109.js"
+  ]
+}
