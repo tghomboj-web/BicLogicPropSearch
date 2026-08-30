@@ -262,78 +262,279 @@ def search_properties_database(criteria):
     return [p.to_dict() for p in properties]
 
 # Email notification
-def send_email_notification(user, properties):
-    """Send email notification with matching properties"""
+def send_email_notification(user, properties, criteria=None):
+    """Send property notification email"""
     try:
-        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_server = os.getenv('SMTP_SERVER')
+        smtp_port = int(os.getenv('SMTP_PORT', 587))
         smtp_username = os.getenv('SMTP_USERNAME')
         smtp_password = os.getenv('SMTP_PASSWORD')
         
         print(f"Email notification attempt:")
         print(f"  To: {user.email}")
-        print(f"  SMTP Server: {smtp_server}")
-        print(f"  SMTP Port: {smtp_port}")
-        print(f"  SMTP Username: {smtp_username}")
-        print(f"  SMTP Password configured: {bool(smtp_password)}")
-        print(f"  Properties to send: {len(properties)}")
+        print(f"  Properties found: {len(properties) if properties else 0}")
+        print(f"  SMTP configured: {bool(smtp_username and smtp_password)}")
         
         if not smtp_username or not smtp_password:
             print("SMTP credentials not configured")
             return False
         
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'New Property Matches Found!'
+        
+        if properties:
+            msg['Subject'] = 'New Property Matches Found!'
+        else:
+            msg['Subject'] = 'No Properties Found - Search Results'
+            
         msg['From'] = smtp_username
         msg['To'] = user.email
         
-        html_content = f"""
-        <html>
-        <body>
-            <h2>New Properties Matching Your Criteria</h2>
-            <p>Hi! We found {len(properties)} new properties that match your search criteria:</p>
-            <br>
-        """
-        
-        for prop in properties:
-            html_content += f"""
-            <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
-                <h3>{prop['title']}</h3>
-                <p><strong>Price:</strong> ${prop['price']:,}</p>
-                <p><strong>Address:</strong> {prop['address']}</p>
-                <p><strong>Zip Code:</strong> {prop['zip_code']}</p>
-                <p><strong>Type:</strong> {prop['property_type'] or 'N/A'}</p>
-                <p><strong>Bedrooms:</strong> {prop['bedrooms'] or 'N/A'}</p>
-                <p><strong>Bathrooms:</strong> {prop['bathrooms'] or 'N/A'}</p>
-                <p><strong>Sqft:</strong> {prop['sqft'] or 'N/A'}</p>
-                {f'<p><a href="{prop["url"]}">View Property</a></p>' if prop['url'] else ''}
-            </div>
-            <br>
+        # Build search criteria section
+        criteria_section = ""
+        if criteria:
+            criteria_section = """
+            <div style="background-color: #f0f4ff; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">🔍 Your Search Criteria:</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #555; font-size: 14px;">
             """
+            if criteria.get('zip_codes'):
+                criteria_section += f"<li><strong>Zip Codes:</strong> {criteria['zip_codes']}</li>"
+            if criteria.get('min_price') or criteria.get('max_price'):
+                criteria_section += f"<li><strong>Price Range:</strong> ${criteria.get('min_price', 0):,} - ${criteria.get('max_price', 'Any')}</li>"
+            if criteria.get('bedrooms'):
+                criteria_section += f"<li><strong>Bedrooms:</strong> {criteria['bedrooms']} or more</li>"
+            if criteria.get('bathrooms'):
+                criteria_section += f"<li><strong>Bathrooms:</strong> {criteria['bathrooms']} or more</li>"
+            if criteria.get('property_type'):
+                criteria_section += f"<li><strong>Property Type:</strong> {criteria['property_type']}</li>"
+            if criteria.get('min_sqft'):
+                criteria_section += f"<li><strong>Min Sqft:</strong> {criteria['min_sqft']}+</li>"
+            criteria_section += "</ul></div>"
         
-        html_content += """
-            <p>Best regards,<br>Property Notification Team</p>
-        </body>
-        </html>
-        """
+        if properties:
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background-color: #f5f5f5;
+                        margin: 0;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 10px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }}
+                    .header {{
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 30px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        margin: 0;
+                        font-size: 28px;
+                        font-weight: 600;
+                    }}
+                    .header p {{
+                        margin: 10px 0 0 0;
+                        font-size: 16px;
+                        opacity: 0.9;
+                    }}
+                    .content {{
+                        padding: 30px;
+                    }}
+                    .property-card {{
+                        background-color: #f9f9f9;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        padding: 20px;
+                        margin: 15px 0;
+                        transition: box-shadow 0.3s ease;
+                    }}
+                    .property-card:hover {{
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                    }}
+                    .property-title {{
+                        color: #333;
+                        font-size: 20px;
+                        font-weight: 600;
+                        margin: 0 0 15px 0;
+                    }}
+                    .property-price {{
+                        color: #667eea;
+                        font-size: 24px;
+                        font-weight: 700;
+                        margin: 10px 0;
+                    }}
+                    .property-details {{
+                        color: #555;
+                        font-size: 14px;
+                        line-height: 1.6;
+                    }}
+                    .property-details strong {{
+                        color: #333;
+                    }}
+                    .view-button {{
+                        display: inline-block;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 12px 24px;
+                        text-decoration: none;
+                        border-radius: 5px;
+                        font-weight: 600;
+                        margin-top: 15px;
+                    }}
+                    .footer {{
+                        background-color: #f5f5f5;
+                        padding: 20px;
+                        text-align: center;
+                        color: #666;
+                        font-size: 14px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🏠 New Property Matches</h1>
+                        <p>We found {len(properties)} new properties matching your criteria</p>
+                    </div>
+                    <div class="content">
+                        {criteria_section}
+            """
+            
+            for prop in properties:
+                html_content += f"""
+                        <div class="property-card">
+                            <h3 class="property-title">{prop['title']}</h3>
+                            <p class="property-price">${prop['price']:,}</p>
+                            <div class="property-details">
+                                <p><strong>📍 Address:</strong> {prop['address']}</p>
+                                <p><strong>📮 Zip Code:</strong> {prop['zip_code']}</p>
+                                <p><strong>🏠 Type:</strong> {prop['property_type'] or 'N/A'}</p>
+                                <p><strong>🛏️ Bedrooms:</strong> {prop['bedrooms'] or 'N/A'}</p>
+                                <p><strong>🚿 Bathrooms:</strong> {prop['bathrooms'] or 'N/A'}</p>
+                                <p><strong>📐 Sqft:</strong> {prop['sqft'] or 'N/A'}</p>
+                                <p><strong>📝 Description:</strong> {prop['description']}</p>
+                            </div>
+                            {f'<a href="{prop["url"]}" class="view-button">View Property →</a>' if prop['url'] else ''}
+                        </div>
+                """
+            
+            html_content += """
+                    </div>
+                    <div class="footer">
+                        <p>Best regards,<br><strong>Property Notification Team</strong></p>
+                        <p style="margin-top: 10px; font-size: 12px;">You're receiving this email because you subscribed to property alerts.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            # No properties found email
+            html_content = f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background-color: #f5f5f5;
+                        margin: 0;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background-color: #ffffff;
+                        border-radius: 10px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }}
+                    .header {{
+                        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                        color: white;
+                        padding: 30px;
+                        text-align: center;
+                    }}
+                    .header h1 {{
+                        margin: 0;
+                        font-size: 28px;
+                        font-weight: 600;
+                    }}
+                    .header p {{
+                        margin: 10px 0 0 0;
+                        font-size: 16px;
+                        opacity: 0.9;
+                    }}
+                    .content {{
+                        padding: 30px;
+                    }}
+                    .no-results {{
+                        background-color: #fff3cd;
+                        border: 1px solid #ffc107;
+                        border-radius: 8px;
+                        padding: 20px;
+                        margin: 20px 0;
+                        text-align: center;
+                    }}
+                    .no-results h2 {{
+                        color: #856404;
+                        margin: 0 0 10px 0;
+                    }}
+                    .no-results p {{
+                        color: #856404;
+                        margin: 0;
+                    }}
+                    .footer {{
+                        background-color: #f5f5f5;
+                        padding: 20px;
+                        text-align: center;
+                        color: #666;
+                        font-size: 14px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔍 Search Results</h1>
+                        <p>No properties found matching your criteria</p>
+                    </div>
+                    <div class="content">
+                        {criteria_section}
+                        <div class="no-results">
+                            <h2>😕 No Properties Found</h2>
+                            <p>We couldn't find any properties that match your search criteria. Try adjusting your filters or expanding your search area.</p>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>Best regards,<br><strong>Property Notification Team</strong></p>
+                        <p style="margin-top: 10px; font-size: 12px;">You're receiving this email because you requested a property search.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
         
         msg.attach(MIMEText(html_content, 'html'))
         
-        print("Attempting to connect to SMTP server...")
         server = smtplib.SMTP(smtp_server, smtp_port)
-        print("SMTP server connected, starting TLS...")
         server.starttls()
-        print("TLS started, attempting login...")
         server.login(smtp_username, smtp_password)
-        print("Login successful, sending message...")
         server.send_message(msg)
-        print("Message sent, quitting...")
         server.quit()
         
-        print(f"✅ Email sent to {user.email}")
+        print(f"Email sent successfully to {user.email}")
         return True
     except Exception as e:
-        print(f"❌ Error sending email: {e}")
+        print(f"Error sending email: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -462,9 +663,9 @@ def search():
         
         properties = search_properties(criteria)
         
-        # Send notifications if properties found
+        # Send notifications (email always sent, telegram only if properties found)
+        send_email_notification(user, properties, criteria)
         if properties:
-            send_email_notification(user, properties)
             send_telegram_notification(user, properties)
         
         return jsonify({
@@ -540,10 +741,11 @@ def subscribe():
         
         properties = search_properties(criteria)
         
+        # Send immediate notification (email always sent, telegram only if properties found)
+        send_email_notification(user, properties, criteria)
         if properties:
-            send_email_notification(user, properties)
             send_telegram_notification(user, properties)
-            subscription.last_notified = datetime.utcnow()
+            subscription.last_notified = datetime.now()
             db.session.commit()
         
         return jsonify({
@@ -796,26 +998,16 @@ def send_telegram_message(chat_id, text, reply_markup=None):
             import json
             data['reply_markup'] = json.dumps(reply_markup)
         
-        print(f"Sending message to chat_id: {chat_id}")
-        print(f"Message text: {text[:100]}...")
-        print(f"Reply markup: {reply_markup}")
-        
         response = requests.post(url, data=data)
-        print(f"Telegram API response: {response.status_code}")
-        print(f"Response body: {response.text}")
         
         if response.status_code != 200:
-            print(f"Error response: {response.json()}")
+            print(f"Telegram API error: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"Error sending Telegram message: {e}")
-        import traceback
-        traceback.print_exc()
 
 def process_telegram_update(update):
     """Process a single Telegram update"""
     try:
-        print(f"Processing update: {update}")
-        
         # Handle callback queries from inline keyboards
         callback_query = update.get('callback_query')
         if callback_query:
@@ -823,18 +1015,15 @@ def process_telegram_update(update):
             callback_data = callback_query.get('data')
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             
-            print(f"Callback query: chat_id={chat_id}, data={callback_data}")
-            
             if callback_data == 'search_now':
                 # Start conversational search flow
                 telegram_conversation_state[str(chat_id)] = {
-                    'step': 'zip_codes',
+                    'step': 'email',
                     'criteria': {}
                 }
                 response = "🔍 <b>New Property Search</b>\n\n"
                 response += "Let's set up your search criteria step by step.\n\n"
-                response += "First, what zip code(s) would you like to search in?\n"
-                response += "You can enter multiple zip codes separated by commas."
+                response += "First, what's your email address for receiving results?"
                 send_telegram_message(chat_id, response)
             
             # Handle skip button callbacks
@@ -1019,10 +1208,12 @@ def process_telegram_update(update):
                     # Execute subscription creation
                     del telegram_conversation_state[str(chat_id)]
                     
-                    user = User.query.filter_by(telegram_id=str(chat_id)).first()
+                    # Find or create user with email from conversation
+                    email = state['criteria'].get('email')
+                    user = User.query.filter_by(email=email).first() if email else None
                     if not user:
                         user = User(
-                            email=f"telegram_{chat_id}@temp.com",
+                            email=email or f"telegram_{chat_id}@temp.com",
                             telegram_id=str(chat_id)
                         )
                         db.session.add(user)
@@ -1043,17 +1234,16 @@ def process_telegram_update(update):
                     db.session.add(subscription)
                     db.session.commit()
                     
-                    send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nYou will receive {frequency} notifications for properties matching your criteria.")
+                    send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nYou will receive {frequency} notifications at {email} for properties matching your criteria.")
             elif callback_data == 'subscribe':
                 # Start conversational subscription flow
                 telegram_conversation_state[str(chat_id)] = {
-                    'step': 'sub_zip_codes',
+                    'step': 'sub_email',
                     'criteria': {}
                 }
                 response = "📧 <b>Subscribe for Alerts</b>\n\n"
                 response += "Let's set up your subscription step by step.\n\n"
-                response += "First, what zip code(s) would you like to subscribe to?\n"
-                response += "You can enter multiple zip codes separated by commas."
+                response += "First, what's your email address for receiving notifications?"
                 send_telegram_message(chat_id, response)
             elif callback_data == 'status':
                 if user:
@@ -1090,30 +1280,21 @@ def process_telegram_update(update):
                 else:
                     send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.")
             
-            # Answer the callback query
+            # Answer the callback query immediately for faster response
             bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
             url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
-            requests.post(url, json={'callback_query_id': callback_query.get('id')})
+            requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
             return
         
         message = update.get('message', {})
         chat_id = message.get('chat', {}).get('id')
         text = message.get('text', '').strip()
         
-        print(f"Message: chat_id={chat_id}, text={text}")
-        print(f"Full message object: {message}")
-        
-        if not chat_id:
-            print("No chat_id found in message")
-            return
-        
-        if not text:
-            print("No text found in message")
+        if not chat_id or not text:
             return
         
         # Find user by telegram_id
         user = User.query.filter_by(telegram_id=str(chat_id)).first()
-        print(f"User found: {user is not None}")
         
         # Handle commands
         if text == '/start':
@@ -1152,11 +1333,21 @@ def process_telegram_update(update):
             step = state['step']
             criteria = state['criteria']
             
-            print(f"Conversational flow: chat_id={chat_id}, step={step}, text={text}")
-            
             # Subscription flow
             if step.startswith('sub_'):
-                if step == 'sub_zip_codes':
+                if step == 'sub_email':
+                    email = text.strip()
+                    # Basic email validation
+                    if '@' not in email or '.' not in email:
+                        send_telegram_message(chat_id, "❌ Invalid email address. Please enter a valid email.")
+                        return
+                    criteria['email'] = email
+                    state['step'] = 'sub_zip_codes'
+                    response = "Great! What zip code(s) would you like to subscribe to?\n"
+                    response += "You can enter multiple zip codes separated by commas."
+                    send_telegram_message(chat_id, response)
+                
+                elif step == 'sub_zip_codes':
                     criteria['zip_codes'] = text.strip()
                     state['step'] = 'sub_min_price'
                     response = "Great! What's your minimum price?"
@@ -1276,7 +1467,19 @@ def process_telegram_update(update):
                 return
             
             # Search flow
-            if step == 'zip_codes':
+            if step == 'email':
+                email = text.strip()
+                # Basic email validation
+                if '@' not in email or '.' not in email:
+                    send_telegram_message(chat_id, "❌ Invalid email address. Please enter a valid email.")
+                    return
+                criteria['email'] = email
+                state['step'] = 'zip_codes'
+                response = "Great! What zip code(s) would you like to search in?\n"
+                response += "You can enter multiple zip codes separated by commas."
+                send_telegram_message(chat_id, response)
+            
+            elif step == 'zip_codes':
                 criteria['zip_codes'] = text.strip()
                 state['step'] = 'min_price'
                 response = "Great! What's your minimum price?"
@@ -1387,10 +1590,12 @@ def process_telegram_update(update):
                 # Search is complete, execute it
                 del telegram_conversation_state[str(chat_id)]
                 
-                # Find or create user
+                # Find or create user with email from conversation
+                email = criteria.get('email')
+                user = User.query.filter_by(email=email).first() if email else None
                 if not user:
                     user = User(
-                        email=f"telegram_{chat_id}@temp.com",
+                        email=email or f"telegram_{chat_id}@temp.com",
                         telegram_id=str(chat_id)
                     )
                     db.session.add(user)
@@ -1399,11 +1604,14 @@ def process_telegram_update(update):
                 send_telegram_message(chat_id, "🔍 Searching for properties...")
                 properties = search_properties(criteria)
                 
+                # Send email notification (always sent, with criteria)
+                send_email_notification(user, properties, criteria)
+                
                 if properties:
                     send_telegram_notification(user, properties)
-                    send_telegram_message(chat_id, f"✅ Found {len(properties)} properties matching your criteria!")
+                    send_telegram_message(chat_id, f"✅ Found {len(properties)} properties matching your criteria! Results sent to {email}")
                 else:
-                    send_telegram_message(chat_id, "❌ No properties found matching your criteria.")
+                    send_telegram_message(chat_id, f"❌ No properties found matching your criteria. Results sent to {email}")
             
             return
         
@@ -1526,8 +1734,8 @@ def telegram_polling():
     while True:
         try:
             url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
-            params = {'offset': offset, 'timeout': 20}
-            response = requests.get(url, params=params, timeout=25)
+            params = {'offset': offset, 'timeout': 10}  # Reduced timeout for faster response
+            response = requests.get(url, params=params, timeout=15)
             
             if response.status_code == 200:
                 data = response.json()
@@ -1540,12 +1748,10 @@ def telegram_polling():
                             with app.app_context():
                                 process_telegram_update(update)
                             offset = update.get('update_id', 0) + 1
-                    else:
-                        print("No updates received (timeout)")
                 else:
                     print(f"Telegram API error: {data.get('description')}")
                     import time
-                    time.sleep(5)
+                    time.sleep(2)
             elif response.status_code == 409:
                 # Conflict error - clear webhook aggressively
                 print("Telegram polling conflict (409), clearing webhook...")
@@ -1553,32 +1759,36 @@ def telegram_polling():
                     url = f"https://api.telegram.org/bot{bot_token}/deleteWebhook"
                     requests.get(url, params={'drop_pending_updates': True}, timeout=5)
                     import time
-                    time.sleep(5)  # Longer wait after clearing
+                    time.sleep(3)
                 except:
                     pass
                 offset = 0
                 import time
-                time.sleep(15)
+                time.sleep(10)
             else:
                 print(f"Telegram polling error: {response.status_code}")
                 import time
-                time.sleep(5)
-                
+                time.sleep(2)
+        
         except Exception as e:
             print(f"Telegram polling error: {e}")
             import traceback
             traceback.print_exc()
             import time
-            time.sleep(10)
+            time.sleep(5)
 
 if __name__ == '__main__':
-    # Start Telegram polling in background thread (only in main process)
+    # Start Telegram polling in background thread (only in main process and if enabled)
     import os
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    enable_telegram_polling = os.environ.get('ENABLE_TELEGRAM_POLLING', 'true').lower() == 'true'
+    
+    if enable_telegram_polling and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         polling_thread = threading.Thread(target=telegram_polling, daemon=True)
         polling_thread.start()
         print("Starting Flask server with Telegram polling enabled")
     else:
-        print("Starting Flask server (reloader - polling already running)")
+        print("Starting Flask server (polling disabled or already running)")
     
-    app.run(debug=False, port=5000)
+    # Use PORT environment variable for Render deployment
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
