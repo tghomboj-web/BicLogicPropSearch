@@ -529,14 +529,38 @@ def send_email_notification(user, properties, criteria=None):
         
         msg.attach(MIMEText(html_content, 'html'))
         
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-        server.starttls(timeout=10)
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"Email sent successfully to {user.email}")
-        return True
+        # Try different connection methods for SendGrid
+        try:
+            # Try SSL on port 465 first (most reliable for SendGrid)
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+                server.login(smtp_username, smtp_password)
+            else:
+                # Try TLS on port 587 or 2525
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                server.starttls(timeout=10)
+                server.login(smtp_username, smtp_password)
+            
+            server.send_message(msg)
+            server.quit()
+            
+            print(f"Email sent successfully to {user.email}")
+            return True
+        except Exception as e:
+            print(f"SMTP connection failed: {e}")
+            # Try fallback to different port
+            print("Trying fallback port 2525...")
+            try:
+                server = smtplib.SMTP(smtp_server, 2525, timeout=10)
+                server.starttls(timeout=10)
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+                server.quit()
+                print(f"Email sent successfully to {user.email} via fallback port")
+                return True
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
+                raise
     except Exception as e:
         print(f"Error sending email: {e}")
         import traceback
