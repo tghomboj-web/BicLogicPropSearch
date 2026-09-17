@@ -1267,57 +1267,68 @@ def process_telegram_update(update):
                     send_telegram_message(chat_id, response, keyboard)
             
             elif callback_data in ['freq_daily', 'freq_weekly', 'freq_monthly']:
+                # Answer the callback query first
+                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+                requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
+                
                 state = telegram_conversation_state.get(str(chat_id))
                 if state:
-                    frequency = callback_data.replace('freq_', '')
-                    state['criteria']['notification_frequency'] = frequency
-                    # Execute subscription creation
-                    del telegram_conversation_state[str(chat_id)]
-                    
-                    # Find or create user with email from conversation
-                    email = state['criteria'].get('email')
-                    user = User.query.filter_by(email=email).first() if email else None
-                    if not user:
-                        user = User(
-                            email=email or f"telegram_{chat_id}@temp.com",
-                            telegram_id=str(chat_id)
+                    try:
+                        frequency = callback_data.replace('freq_', '')
+                        state['criteria']['notification_frequency'] = frequency
+                        # Execute subscription creation
+                        del telegram_conversation_state[str(chat_id)]
+                        
+                        # Find or create user with email from conversation
+                        email = state['criteria'].get('email')
+                        user = User.query.filter_by(email=email).first() if email else None
+                        if not user:
+                            user = User(
+                                email=email or f"telegram_{chat_id}@temp.com",
+                                telegram_id=str(chat_id)
+                            )
+                            db.session.add(user)
+                            db.session.commit()
+                        
+                        # Create subscription
+                        subscription = SearchSubscription(
+                            user_id=user.id,
+                            notification_frequency=state['criteria']['notification_frequency'],
+                            min_price=state['criteria'].get('min_price'),
+                            max_price=state['criteria'].get('max_price'),
+                            zip_codes=state['criteria'].get('zip_codes'),
+                            property_type=state['criteria'].get('property_type'),
+                            bedrooms=state['criteria'].get('bedrooms'),
+                            bathrooms=state['criteria'].get('bathrooms'),
+                            min_sqft=state['criteria'].get('min_sqft')
                         )
-                        db.session.add(user)
+                        db.session.add(subscription)
                         db.session.commit()
-                    
-                    # Create subscription
-                    subscription = SearchSubscription(
-                        user_id=user.id,
-                        notification_frequency=state['criteria']['notification_frequency'],
-                        min_price=state['criteria'].get('min_price'),
-                        max_price=state['criteria'].get('max_price'),
-                        zip_codes=state['criteria'].get('zip_codes'),
-                        property_type=state['criteria'].get('property_type'),
-                        bedrooms=state['criteria'].get('bedrooms'),
-                        bathrooms=state['criteria'].get('bathrooms'),
-                        min_sqft=state['criteria'].get('min_sqft')
-                    )
-                    db.session.add(subscription)
-                    db.session.commit()
-                    
-                    # Send immediate search results for the new subscription
-                    criteria = {
-                        'min_price': state['criteria'].get('min_price'),
-                        'max_price': state['criteria'].get('max_price'),
-                        'zip_codes': state['criteria'].get('zip_codes'),
-                        'property_type': state['criteria'].get('property_type'),
-                        'bedrooms': state['criteria'].get('bedrooms'),
-                        'bathrooms': state['criteria'].get('bathrooms'),
-                        'min_sqft': state['criteria'].get('min_sqft')
-                    }
-                    properties = search_properties(criteria)
-                    send_email_notification(user, properties, criteria)
-                    
-                    if properties:
-                        send_telegram_notification(user, properties)
-                        send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nFound {len(properties)} properties matching your criteria immediately. You'll also receive {frequency} notifications at {email}.", get_main_menu_keyboard())
-                    else:
-                        send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nNo properties found matching your criteria right now. You'll receive {frequency} notifications at {email} when matching properties appear.", get_main_menu_keyboard())
+                        
+                        # Send immediate search results for the new subscription
+                        criteria = {
+                            'min_price': state['criteria'].get('min_price'),
+                            'max_price': state['criteria'].get('max_price'),
+                            'zip_codes': state['criteria'].get('zip_codes'),
+                            'property_type': state['criteria'].get('property_type'),
+                            'bedrooms': state['criteria'].get('bedrooms'),
+                            'bathrooms': state['criteria'].get('bathrooms'),
+                            'min_sqft': state['criteria'].get('min_sqft')
+                        }
+                        properties = search_properties(criteria)
+                        send_email_notification(user, properties, criteria)
+                        
+                        if properties:
+                            send_telegram_notification(user, properties)
+                            send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nFound {len(properties)} properties matching your criteria immediately. You'll also receive {frequency} notifications at {email}.", get_main_menu_keyboard())
+                        else:
+                            send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nNo properties found matching your criteria right now. You'll receive {frequency} notifications at {email} when matching properties appear.", get_main_menu_keyboard())
+                    except Exception as e:
+                        print(f"Error creating subscription: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        send_telegram_message(chat_id, f"❌ Error creating subscription: {str(e)}", get_main_menu_keyboard())
             elif callback_data == 'subscribe':
                 # Start conversational subscription flow
                 telegram_conversation_state[str(chat_id)] = {
