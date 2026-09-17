@@ -303,18 +303,22 @@ def send_email_notification(user, properties, criteria=None):
                 <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">🔍 Your Search Criteria:</h3>
                 <ul style="margin: 0; padding-left: 20px; color: #555; font-size: 14px;">
             """
-            if criteria.get('zip_codes'):
-                criteria_section += f"<li><strong>Zip Codes:</strong> {criteria['zip_codes']}</li>"
-            if criteria.get('min_price') or criteria.get('max_price'):
-                criteria_section += f"<li><strong>Price Range:</strong> ${criteria.get('min_price', 0):,} - ${criteria.get('max_price', 'Any')}</li>"
-            if criteria.get('bedrooms'):
-                criteria_section += f"<li><strong>Bedrooms:</strong> {criteria['bedrooms']} or more</li>"
-            if criteria.get('bathrooms'):
-                criteria_section += f"<li><strong>Bathrooms:</strong> {criteria['bathrooms']} or more</li>"
-            if criteria.get('property_type'):
-                criteria_section += f"<li><strong>Property Type:</strong> {criteria['property_type']}</li>"
-            if criteria.get('min_sqft'):
-                criteria_section += f"<li><strong>Min Sqft:</strong> {criteria['min_sqft']}+</li>"
+            # Show all criteria, using "Any" for skipped fields
+            criteria_section += f"<li><strong>Zip Codes:</strong> {criteria.get('zip_codes', 'Not specified')}</li>"
+            
+            min_price = criteria.get('min_price')
+            max_price = criteria.get('max_price')
+            if min_price or max_price:
+                price_range = f"${min_price:,}" if min_price else "Any"
+                price_range += f" - ${max_price:,}" if max_price else " - Any"
+                criteria_section += f"<li><strong>Price Range:</strong> {price_range}</li>"
+            else:
+                criteria_section += f"<li><strong>Price Range:</strong> Any</li>"
+            
+            criteria_section += f"<li><strong>Bedrooms:</strong> {criteria.get('bedrooms', 'Any')} or more</li>"
+            criteria_section += f"<li><strong>Bathrooms:</strong> {criteria.get('bathrooms', 'Any')} or more</li>"
+            criteria_section += f"<li><strong>Property Type:</strong> {criteria.get('property_type', 'Any')}</li>"
+            criteria_section += f"<li><strong>Min Sqft:</strong> {criteria.get('min_sqft', 'Any')}+</li>"
             criteria_section += "</ul></div>"
         
         if properties:
