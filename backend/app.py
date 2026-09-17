@@ -780,8 +780,13 @@ def subscribe():
         
         # Send immediate notification (email always sent, telegram only if properties found)
         print("Calling send_email_notification...")
-        send_email_notification(user, properties, criteria)
-        print("send_email_notification completed")
+        try:
+            send_email_notification(user, properties, criteria)
+            print("send_email_notification completed successfully")
+        except Exception as e:
+            print(f"Email notification failed: {e}")
+            import traceback
+            traceback.print_exc()
         
         if properties:
             send_telegram_notification(user, properties)
@@ -1388,20 +1393,21 @@ def process_telegram_update(update):
                         # Send email notification in background thread to avoid blocking
                         def send_background_email():
                             try:
-                                criteria = {
-                                    'min_price': state['criteria'].get('min_price'),
-                                    'max_price': state['criteria'].get('max_price'),
-                                    'zip_codes': state['criteria'].get('zip_codes'),
-                                    'property_type': state['criteria'].get('property_type'),
-                                    'bedrooms': state['criteria'].get('bedrooms'),
-                                    'bathrooms': state['criteria'].get('bathrooms'),
-                                    'min_sqft': state['criteria'].get('min_sqft')
-                                }
-                                properties = search_properties(criteria)
-                                send_email_notification(user, properties, criteria)
-                                
-                                if properties:
-                                    send_telegram_notification(user, properties)
+                                with app.app_context():
+                                    criteria = {
+                                        'min_price': state['criteria'].get('min_price'),
+                                        'max_price': state['criteria'].get('max_price'),
+                                        'zip_codes': state['criteria'].get('zip_codes'),
+                                        'property_type': state['criteria'].get('property_type'),
+                                        'bedrooms': state['criteria'].get('bedrooms'),
+                                        'bathrooms': state['criteria'].get('bathrooms'),
+                                        'min_sqft': state['criteria'].get('min_sqft')
+                                    }
+                                    properties = search_properties(criteria)
+                                    send_email_notification(user, properties, criteria)
+                                    
+                                    if properties:
+                                        send_telegram_notification(user, properties)
                             except Exception as e:
                                 print(f"Error in background email sending: {e}")
                                 import traceback
