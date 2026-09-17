@@ -525,8 +525,8 @@ def send_email_notification(user, properties, criteria=None):
         
         msg.attach(MIMEText(html_content, 'html'))
         
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        server.starttls(timeout=10)
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
         server.quit()
@@ -1307,24 +1307,40 @@ def process_telegram_update(update):
                         db.session.commit()
                         print(f"Subscription created successfully: {subscription.id}")
                         
-                        # Send immediate search results for the new subscription
-                        criteria = {
-                            'min_price': state['criteria'].get('min_price'),
-                            'max_price': state['criteria'].get('max_price'),
-                            'zip_codes': state['criteria'].get('zip_codes'),
-                            'property_type': state['criteria'].get('property_type'),
-                            'bedrooms': state['criteria'].get('bedrooms'),
-                            'bathrooms': state['criteria'].get('bathrooms'),
-                            'min_sqft': state['criteria'].get('min_sqft')
-                        }
-                        properties = search_properties(criteria)
-                        send_email_notification(user, properties, criteria)
+                        # Send immediate response to user first
+                        send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nWe'll send you {frequency} notifications at {email}.", get_main_menu_keyboard())
                         
-                        if properties:
-                            send_telegram_notification(user, properties)
-                            send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nFound {len(properties)} properties matching your criteria immediately. You'll also receive {frequency} notifications at {email}.", get_main_menu_keyboard())
-                        else:
-                            send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nNo properties found matching your criteria right now. You'll receive {frequency} notifications at {email} when matching properties appear.", get_main_menu_keyboard())
+                        # Answer the callback query immediately
+                        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                        url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+                        requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
+                        
+                        # Send email notification in background thread to avoid blocking
+                        def send_background_email():
+                            try:
+                                criteria = {
+                                    'min_price': state['criteria'].get('min_price'),
+                                    'max_price': state['criteria'].get('max_price'),
+                                    'zip_codes': state['criteria'].get('zip_codes'),
+                                    'property_type': state['criteria'].get('property_type'),
+                                    'bedrooms': state['criteria'].get('bedrooms'),
+                                    'bathrooms': state['criteria'].get('bathrooms'),
+                                    'min_sqft': state['criteria'].get('min_sqft')
+                                }
+                                properties = search_properties(criteria)
+                                send_email_notification(user, properties, criteria)
+                                
+                                if properties:
+                                    send_telegram_notification(user, properties)
+                            except Exception as e:
+                                print(f"Error in background email sending: {e}")
+                                import traceback
+                                traceback.print_exc()
+                        
+                        import threading
+                        email_thread = threading.Thread(target=send_background_email)
+                        email_thread.start()
+                        
                     except Exception as e:
                         print(f"Error creating subscription: {e}")
                         import traceback
@@ -1333,11 +1349,11 @@ def process_telegram_update(update):
                 else:
                     print(f"No conversation state found for chat_id: {chat_id}")
                     send_telegram_message(chat_id, "❌ Session expired. Please start subscription again with /start", get_main_menu_keyboard())
-                
-                # Answer the callback query at the end
-                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-                url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
-                requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
+                    
+                    # Answer the callback query
+                    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                    url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+                    requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
             elif callback_data == 'subscribe':
                 # Start conversational subscription flow
                 telegram_conversation_state[str(chat_id)] = {
