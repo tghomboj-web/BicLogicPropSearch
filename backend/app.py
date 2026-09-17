@@ -538,7 +538,7 @@ def send_email_notification(user, properties, criteria=None):
             else:
                 # Try TLS on port 587 or 2525
                 server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-                server.starttls(timeout=10)
+                server.starttls()
                 server.login(smtp_username, smtp_password)
             
             server.send_message(msg)
@@ -552,7 +552,7 @@ def send_email_notification(user, properties, criteria=None):
             print("Trying fallback port 2525...")
             try:
                 server = smtplib.SMTP(smtp_server, 2525, timeout=10)
-                server.starttls(timeout=10)
+                server.starttls()
                 server.login(smtp_username, smtp_password)
                 server.send_message(msg)
                 server.quit()
