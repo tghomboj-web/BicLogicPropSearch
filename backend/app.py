@@ -264,6 +264,7 @@ def search_properties_database(criteria):
 # Email notification
 def send_email_notification(user, properties, criteria=None):
     """Send property notification email"""
+    print("=== EMAIL NOTIFICATION START ===")
     try:
         smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
@@ -273,7 +274,10 @@ def send_email_notification(user, properties, criteria=None):
         print(f"Email notification attempt:")
         print(f"  To: {user.email}")
         print(f"  Properties found: {len(properties) if properties else 0}")
-        print(f"  SMTP configured: {bool(smtp_username and smtp_password)}")
+        print(f"  SMTP server: {smtp_server}")
+        print(f"  SMTP port: {smtp_port}")
+        print(f"  SMTP username: {smtp_username}")
+        print(f"  SMTP password configured: {bool(smtp_password)}")
         
         if not smtp_username or not smtp_password:
             print("SMTP credentials not configured")
@@ -741,10 +745,18 @@ def subscribe():
             'min_sqft': subscription.min_sqft
         }
         
+        print(f"=== WEBSITE SUBSCRIPTION ===")
+        print(f"User: {user.email}")
+        print(f"Criteria: {criteria}")
+        
         properties = search_properties(criteria)
+        print(f"Properties found: {len(properties)}")
         
         # Send immediate notification (email always sent, telegram only if properties found)
+        print("Calling send_email_notification...")
         send_email_notification(user, properties, criteria)
+        print("send_email_notification completed")
+        
         if properties:
             send_telegram_notification(user, properties)
             subscription.last_notified = datetime.now()
@@ -798,7 +810,10 @@ def add_property():
 
 @app.route('/api/test-notification/<int:user_id>', methods=['POST'])
 def test_notification(user_id):
+    print(f"=== TEST NOTIFICATION ENDPOINT ===")
     user = User.query.get_or_404(user_id)
+    print(f"User: {user.email}")
+    
     # Use broader criteria for testing
     criteria = {
         'min_price': None,  # Remove price filter for testing
@@ -814,7 +829,9 @@ def test_notification(user_id):
     print(f"Found {len(properties)} properties")
     
     if properties:
+        print("Sending email notification...")
         email_sent = send_email_notification(user, properties)
+        print(f"Email sent result: {email_sent}")
         telegram_sent = send_telegram_notification(user, properties)
     else:
         email_sent = False
@@ -826,6 +843,33 @@ def test_notification(user_id):
         'telegram_sent': telegram_sent,
         'properties_found': len(properties),
         'properties': properties
+    })
+
+@app.route('/api/test-email', methods=['POST'])
+def test_email_endpoint():
+    """Test email sending directly"""
+    print(f"=== TEST EMAIL ENDPOINT ===")
+    data = request.json
+    email = data.get('email', 'test@example.com')
+    
+    # Create a temporary user for testing
+    from datetime import datetime
+    test_user = User(
+        email=email,
+        phone=None,
+        telegram_id=None
+    )
+    
+    # Test with empty properties
+    criteria = {'test': True}
+    print(f"Testing email to: {email}")
+    result = send_email_notification(test_user, [], criteria)
+    print(f"Email test result: {result}")
+    
+    return jsonify({
+        'success': True,
+        'email_sent': result,
+        'email': email
     })
 
 @app.route('/api/quick-search', methods=['POST'])
