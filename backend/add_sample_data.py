@@ -5,16 +5,28 @@ from app import app, db, Property
 
 sample_properties = [
     {
-        "title": "Modern 3-Bedroom House in Brooklyn",
+        "title": "Modern 3-Bedroom House in Charlotte",
         "price": 450000,
-        "address": "123 Oak Street, Brooklyn",
-        "zip_code": "11201",
+        "address": "123 Oak Street, Charlotte",
+        "zip_code": "28277",
         "property_type": "house",
         "bedrooms": 3,
         "bathrooms": 2,
         "sqft": 1800,
         "url": None,
         "description": "Beautiful modern house with open floor plan, updated kitchen, and backyard."
+    },
+    {
+        "title": "Spacious 4-Bedroom Family Home in Charlotte",
+        "price": 550000,
+        "address": "321 Maple Drive, Charlotte",
+        "zip_code": "28277",
+        "property_type": "house",
+        "bedrooms": 4,
+        "bathrooms": 3,
+        "sqft": 2500,
+        "url": None,
+        "description": "Perfect family home with large backyard, garage, and modern appliances."
     },
     {
         "title": "Cozy 2-Bedroom Apartment in Manhattan",
@@ -41,16 +53,16 @@ sample_properties = [
         "description": "High-end condo with stunning views, doorman, and amenities."
     },
     {
-        "title": "Spacious 4-Bedroom Family Home in Queens",
-        "price": 550000,
-        "address": "321 Maple Drive, Queens",
-        "zip_code": "11375",
+        "title": "Suburban Family Home in Charlotte",
+        "price": 380000,
+        "address": "222 Suburban Lane, Charlotte",
+        "zip_code": "28277",
         "property_type": "house",
         "bedrooms": 4,
-        "bathrooms": 3,
-        "sqft": 2500,
+        "bathrooms": 2,
+        "sqft": 2100,
         "url": None,
-        "description": "Perfect family home with large backyard, garage, and modern appliances."
+        "description": "Great family home in excellent school district with large yard."
     },
     {
         "title": "Studio Apartment in SoHo",
@@ -87,18 +99,6 @@ sample_properties = [
         "sqft": 2800,
         "url": None,
         "description": "Stunning penthouse with private rooftop terrace and Central Park views."
-    },
-    {
-        "title": "Suburban Family Home in Westchester",
-        "price": 380000,
-        "address": "222 Suburban Lane, Westchester",
-        "zip_code": "10583",
-        "property_type": "house",
-        "bedrooms": 4,
-        "bathrooms": 2,
-        "sqft": 2100,
-        "url": None,
-        "description": "Great family home in excellent school district with large yard."
     },
     {
         "title": "Downtown Loft in Financial District",
