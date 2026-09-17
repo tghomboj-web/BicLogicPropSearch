@@ -907,97 +907,18 @@ def test_email_endpoint():
         'email': email
     })
 
-@app.route('/api/reset-sample-data', methods=['POST'])
-def reset_sample_data():
-    """Reset database with sample data including Charlotte properties"""
-    print(f"=== RESET SAMPLE DATA ===")
-    try:
-        # Clear existing properties
-        Property.query.delete()
-        
-        # Add sample properties (matching the updated add_sample_data.py)
-        sample_properties = [
-            {
-                "title": "Modern 3-Bedroom House in Charlotte",
-                "price": 450000,
-                "address": "123 Oak Street, Charlotte",
-                "zip_code": "28277",
-                "property_type": "house",
-                "bedrooms": 3,
-                "bathrooms": 2,
-                "sqft": 1800,
-                "url": None,
-                "description": "Beautiful modern house with open floor plan, updated kitchen, and backyard."
-            },
-            {
-                "title": "Spacious 4-Bedroom Family Home in Charlotte",
-                "price": 550000,
-                "address": "321 Maple Drive, Charlotte",
-                "zip_code": "28277",
-                "property_type": "house",
-                "bedrooms": 4,
-                "bathrooms": 3,
-                "sqft": 2500,
-                "url": None,
-                "description": "Perfect family home with large backyard, garage, and modern appliances."
-            },
-            {
-                "title": "Suburban Family Home in Charlotte",
-                "price": 380000,
-                "address": "222 Suburban Lane, Charlotte",
-                "zip_code": "28277",
-                "property_type": "house",
-                "bedrooms": 4,
-                "bathrooms": 2,
-                "sqft": 2100,
-                "url": None,
-                "description": "Great family home in excellent school district with large yard."
-            },
-            {
-                "title": "Cozy 2-Bedroom Apartment in Manhattan",
-                "price": 325000,
-                "address": "456 Park Avenue, Manhattan",
-                "zip_code": "10022",
-                "property_type": "apartment",
-                "bedrooms": 2,
-                "bathrooms": 1,
-                "sqft": 900,
-                "url": None,
-                "description": "Renovated apartment in prime location with great city views."
-            },
-            {
-                "title": "Luxury Condo with View in Manhattan",
-                "price": 750000,
-                "address": "789 Fifth Avenue, Manhattan",
-                "zip_code": "10028",
-                "property_type": "condo",
-                "bedrooms": 2,
-                "bathrooms": 2,
-                "sqft": 1200,
-                "url": None,
-                "description": "High-end condo with stunning views, doorman, and amenities."
-            }
-        ]
-        
-        for prop_data in sample_properties:
-            property = Property(**prop_data)
-            db.session.add(property)
-        
-        db.session.commit()
-        print(f"Added {len(sample_properties)} sample properties to the database!")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Added {len(sample_properties)} sample properties including Charlotte (28277) area'
-        })
-    except Exception as e:
-        print(f"Error resetting sample data: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+@app.route('/api/check-api-config', methods=['GET'])
+def check_api_config():
+    """Check if Searchapi.io API key is configured"""
+    searchapi_key = os.getenv('SEARCHAPI_API_KEY')
+    google_api_key = os.getenv('GOOGLE_API_KEY')
+    
+    return jsonify({
+        'searchapi_configured': bool(searchapi_key),
+        'google_api_configured': bool(google_api_key),
+        'searchapi_key_prefix': searchapi_key[:4] + '...' if searchapi_key else None,
+        'google_key_prefix': google_api_key[:4] + '...' if google_api_key else None
+    })
 
 @app.route('/api/quick-search', methods=['POST'])
 def quick_search():
