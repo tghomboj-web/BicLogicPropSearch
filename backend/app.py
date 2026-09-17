@@ -1267,16 +1267,16 @@ def process_telegram_update(update):
                     send_telegram_message(chat_id, response, keyboard)
             
             elif callback_data in ['freq_daily', 'freq_weekly', 'freq_monthly']:
-                # Answer the callback query first
-                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-                url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
-                requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
+                print(f"Frequency button clicked: {callback_data} for chat_id: {chat_id}")
                 
                 state = telegram_conversation_state.get(str(chat_id))
+                print(f"Conversation state: {state}")
+                
                 if state:
                     try:
                         frequency = callback_data.replace('freq_', '')
                         state['criteria']['notification_frequency'] = frequency
+                        print(f"Creating subscription with frequency: {frequency}")
                         # Execute subscription creation
                         del telegram_conversation_state[str(chat_id)]
                         
@@ -1305,6 +1305,7 @@ def process_telegram_update(update):
                         )
                         db.session.add(subscription)
                         db.session.commit()
+                        print(f"Subscription created successfully: {subscription.id}")
                         
                         # Send immediate search results for the new subscription
                         criteria = {
@@ -1329,6 +1330,14 @@ def process_telegram_update(update):
                         import traceback
                         traceback.print_exc()
                         send_telegram_message(chat_id, f"❌ Error creating subscription: {str(e)}", get_main_menu_keyboard())
+                else:
+                    print(f"No conversation state found for chat_id: {chat_id}")
+                    send_telegram_message(chat_id, "❌ Session expired. Please start subscription again with /start", get_main_menu_keyboard())
+                
+                # Answer the callback query at the end
+                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+                requests.post(url, json={'callback_query_id': callback_query.get('id')}, timeout=5)
             elif callback_data == 'subscribe':
                 # Start conversational subscription flow
                 telegram_conversation_state[str(chat_id)] = {
