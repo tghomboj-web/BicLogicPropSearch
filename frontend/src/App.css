@@ -172,6 +172,38 @@ body {
   gap: 12px;
 }
 
+.button-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.type-btn {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: #6b7280;
+  text-align: center;
+}
+
+.type-btn:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.type-btn.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
 .error {
   background: #fef2f2;
   color: #dc2626;

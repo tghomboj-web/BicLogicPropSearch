@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://biclogicpropsearch.onrender.com/api';
 
 function App() {
   const [mode, setMode] = useState('search'); // 'search' or 'subscribe'
@@ -240,23 +240,53 @@ function App() {
             {validationErrors.zip_codes && <span className="error-message">{validationErrors.zip_codes}</span>}
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="property_type">Type</label>
-              <select
-                id="property_type"
-                name="property_type"
-                value={formData.property_type}
-                onChange={handleChange}
+          <div className="form-group">
+            <label>Property Type</label>
+            <div className="button-group">
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === '' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: ''})}
               >
-                <option value="">Any</option>
-                <option value="house">House</option>
-                <option value="apartment">Apartment</option>
-                <option value="condo">Condo</option>
-                <option value="townhouse">Townhouse</option>
-                <option value="land">Land</option>
-              </select>
+                Any
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === 'house' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: 'house'})}
+              >
+                🏠 House
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === 'apartment' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: 'apartment'})}
+              >
+                🏢 Apartment
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === 'condo' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: 'condo'})}
+              >
+                🏙️ Condo
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === 'townhouse' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: 'townhouse'})}
+              >
+                🏘️ Townhouse
+              </button>
+              <button
+                type="button"
+                className={`type-btn ${formData.property_type === 'land' ? 'active' : ''}`}
+                onClick={() => setFormData({...formData, property_type: 'land'})}
+              >
+                🌳 Land
+              </button>
             </div>
+          </div>
 
             <div className="form-group">
               <label htmlFor="bedrooms">Beds</label>

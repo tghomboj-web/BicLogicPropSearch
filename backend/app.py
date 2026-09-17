@@ -625,10 +625,12 @@ def check_and_notify_users():
                 }
                 
                 properties = search_properties(criteria)
+                user = sub.user
+                
+                # Send email notification (always sent, with criteria)
+                send_email_notification(user, properties, criteria)
                 
                 if properties:
-                    user = sub.user
-                    send_email_notification(user, properties)
                     send_telegram_notification(user, properties)
                     sub.last_notified = now
                     db.session.commit()
@@ -937,7 +939,7 @@ def telegram_webhook():
         response += "/status - View your current search criteria\n"
         response += "/help - Show this help message\n\n"
         response += "Note: You need to sign up at the website first with your Telegram ID."
-        send_telegram_message(chat_id, response)
+        send_telegram_message(chat_id, response, get_main_menu_keyboard())
     
     elif text == '/status':
         if user:
@@ -949,11 +951,11 @@ def telegram_webhook():
             response += f"Bedrooms: {user.bedrooms or 'Any'}\n"
             response += f"Bathrooms: {user.bathrooms or 'Any'}\n"
             response += f"Min Sqft: {user.min_sqft or 'Any'}\n"
-            send_telegram_message(chat_id, response)
+            send_telegram_message(chat_id, response, get_main_menu_keyboard())
         else:
             response = "❌ No account found with your Telegram ID.\n"
             response += "Please sign up at the website and provide your Telegram ID."
-            send_telegram_message(chat_id, response)
+            send_telegram_message(chat_id, response, get_main_menu_keyboard())
     
     elif text == '/search':
         if user:
@@ -971,18 +973,34 @@ def telegram_webhook():
             
             if properties:
                 send_telegram_notification(user, properties)
+                send_telegram_message(chat_id, "✅ Properties found! Check your email for details.", get_main_menu_keyboard())
             else:
-                send_telegram_message(chat_id, "❌ No properties found matching your criteria.")
+                send_telegram_message(chat_id, "❌ No properties found matching your criteria.", get_main_menu_keyboard())
         else:
             response = "❌ No account found with your Telegram ID.\n"
             response += "Please sign up at the website and provide your Telegram ID."
-            send_telegram_message(chat_id, response)
+            send_telegram_message(chat_id, response, get_main_menu_keyboard())
     
     else:
         response = "❓ Unknown command. Type /help for available commands."
-        send_telegram_message(chat_id, response)
+        send_telegram_message(chat_id, response, get_main_menu_keyboard())
     
     return jsonify({'ok': True})
+
+def get_main_menu_keyboard():
+    """Return the main menu keyboard with all options"""
+    return {
+        'inline_keyboard': [
+            [
+                {'text': '🔍 One-time Search', 'callback_data': 'search_now'},
+                {'text': '📧 Subscribe for Alerts', 'callback_data': 'subscribe'}
+            ],
+            [
+                {'text': '📋 View Subscriptions', 'callback_data': 'status'},
+                {'text': '🗑️ Delete Subscriptions', 'callback_data': 'delete'}
+            ]
+        ]
+    }
 
 def send_telegram_message(chat_id, text, reply_markup=None):
     """Send a simple text message via Telegram"""
@@ -1071,11 +1089,21 @@ def process_telegram_update(update):
                 if state:
                     state['step'] = 'property_type'
                     state['criteria']['bathrooms'] = None
-                    response = "What property type are you looking for?\n\n"
-                    response += "Options: house, apartment, condo, townhouse, land"
+                    response = "What property type are you looking for?"
                     keyboard = {
                         'inline_keyboard': [
-                            [{'text': '⏭️ Skip', 'callback_data': 'skip_property_type'}]
+                            [
+                                {'text': '🏠 House', 'callback_data': 'type_house'},
+                                {'text': '🏢 Apartment', 'callback_data': 'type_apartment'}
+                            ],
+                            [
+                                {'text': '🏙️ Condo', 'callback_data': 'type_condo'},
+                                {'text': '🏘️ Townhouse', 'callback_data': 'type_townhouse'}
+                            ],
+                            [
+                                {'text': '🌳 Land', 'callback_data': 'type_land'},
+                                {'text': '⏭️ Skip', 'callback_data': 'skip_property_type'}
+                            ]
                         ]
                     }
                     send_telegram_message(chat_id, response, keyboard)
@@ -1086,6 +1114,20 @@ def process_telegram_update(update):
                     state['step'] = 'min_sqft'
                     state['criteria']['property_type'] = None
                     response = "What's the minimum square footage?"
+                    keyboard = {
+                        'inline_keyboard': [
+                            [{'text': '⏭️ Skip', 'callback_data': 'skip_min_sqft'}]
+                        ]
+                    }
+                    send_telegram_message(chat_id, response, keyboard)
+            
+            elif callback_data in ['type_house', 'type_apartment', 'type_condo', 'type_townhouse', 'type_land']:
+                state = telegram_conversation_state.get(str(chat_id))
+                if state:
+                    property_type = callback_data.replace('type_', '')
+                    state['criteria']['property_type'] = property_type
+                    state['step'] = 'min_sqft'
+                    response = f"Selected: {property_type.capitalize()}\n\nWhat's the minimum square footage?"
                     keyboard = {
                         'inline_keyboard': [
                             [{'text': '⏭️ Skip', 'callback_data': 'skip_min_sqft'}]
@@ -1114,9 +1156,9 @@ def process_telegram_update(update):
                     
                     if properties:
                         send_telegram_notification(user, properties)
-                        send_telegram_message(chat_id, f"✅ Found {len(properties)} properties matching your criteria!")
+                        send_telegram_message(chat_id, f"✅ Found {len(properties)} properties matching your criteria!", get_main_menu_keyboard())
                     else:
-                        send_telegram_message(chat_id, "❌ No properties found matching your criteria.")
+                        send_telegram_message(chat_id, "❌ No properties found matching your criteria.", get_main_menu_keyboard())
             
             # Handle subscription skip button callbacks
             elif callback_data == 'skip_sub_min_price':
@@ -1163,11 +1205,21 @@ def process_telegram_update(update):
                 if state:
                     state['step'] = 'sub_property_type'
                     state['criteria']['bathrooms'] = None
-                    response = "What property type are you looking for?\n\n"
-                    response += "Options: house, apartment, condo, townhouse, land"
+                    response = "What property type are you looking for?"
                     keyboard = {
                         'inline_keyboard': [
-                            [{'text': '⏭️ Skip', 'callback_data': 'skip_sub_property_type'}]
+                            [
+                                {'text': '🏠 House', 'callback_data': 'sub_type_house'},
+                                {'text': '🏢 Apartment', 'callback_data': 'sub_type_apartment'}
+                            ],
+                            [
+                                {'text': '🏙️ Condo', 'callback_data': 'sub_type_condo'},
+                                {'text': '🏘️ Townhouse', 'callback_data': 'sub_type_townhouse'}
+                            ],
+                            [
+                                {'text': '🌳 Land', 'callback_data': 'sub_type_land'},
+                                {'text': '⏭️ Skip', 'callback_data': 'skip_sub_property_type'}
+                            ]
                         ]
                     }
                     send_telegram_message(chat_id, response, keyboard)
@@ -1178,6 +1230,20 @@ def process_telegram_update(update):
                     state['step'] = 'sub_min_sqft'
                     state['criteria']['property_type'] = None
                     response = "What's the minimum square footage?"
+                    keyboard = {
+                        'inline_keyboard': [
+                            [{'text': '⏭️ Skip', 'callback_data': 'skip_sub_min_sqft'}]
+                        ]
+                    }
+                    send_telegram_message(chat_id, response, keyboard)
+            
+            elif callback_data in ['sub_type_house', 'sub_type_apartment', 'sub_type_condo', 'sub_type_townhouse', 'sub_type_land']:
+                state = telegram_conversation_state.get(str(chat_id))
+                if state:
+                    property_type = callback_data.replace('sub_type_', '')
+                    state['criteria']['property_type'] = property_type
+                    state['step'] = 'sub_min_sqft'
+                    response = f"Selected: {property_type.capitalize()}\n\nWhat's the minimum square footage?"
                     keyboard = {
                         'inline_keyboard': [
                             [{'text': '⏭️ Skip', 'callback_data': 'skip_sub_min_sqft'}]
@@ -1234,7 +1300,24 @@ def process_telegram_update(update):
                     db.session.add(subscription)
                     db.session.commit()
                     
-                    send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nYou will receive {frequency} notifications at {email} for properties matching your criteria.")
+                    # Send immediate search results for the new subscription
+                    criteria = {
+                        'min_price': state['criteria'].get('min_price'),
+                        'max_price': state['criteria'].get('max_price'),
+                        'zip_codes': state['criteria'].get('zip_codes'),
+                        'property_type': state['criteria'].get('property_type'),
+                        'bedrooms': state['criteria'].get('bedrooms'),
+                        'bathrooms': state['criteria'].get('bathrooms'),
+                        'min_sqft': state['criteria'].get('min_sqft')
+                    }
+                    properties = search_properties(criteria)
+                    send_email_notification(user, properties, criteria)
+                    
+                    if properties:
+                        send_telegram_notification(user, properties)
+                        send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nFound {len(properties)} properties matching your criteria immediately. You'll also receive {frequency} notifications at {email}.", get_main_menu_keyboard())
+                    else:
+                        send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nNo properties found matching your criteria right now. You'll receive {frequency} notifications at {email} when matching properties appear.", get_main_menu_keyboard())
             elif callback_data == 'subscribe':
                 # Start conversational subscription flow
                 telegram_conversation_state[str(chat_id)] = {
@@ -1257,13 +1340,21 @@ def process_telegram_update(update):
                             response += f"Type: {sub.property_type or 'Any'}\n"
                             response += f"Beds: {sub.bedrooms or 'Any'} | Baths: {sub.bathrooms or 'Any'}\n"
                             response += f"Last notified: {sub.last_notified.strftime('%Y-%m-%d %H:%M') if sub.last_notified else 'Never'}\n\n"
-                        response += "Use /delete <id> to remove a subscription"
+                        
+                        # Add inline buttons for each subscription
+                        keyboard = []
+                        for sub in subscriptions:
+                            keyboard.append([{'text': f'🗑️ Delete {sub.id} ({sub.notification_frequency})', 'callback_data': f'delete_sub_{sub.id}'}])
+                        keyboard.append([{'text': '🗑️ Delete All', 'callback_data': 'delete_all'}])
+                        keyboard.append([{'text': '🔙 Back to Menu', 'callback_data': 'back_to_menu'}])
+                        
+                        send_telegram_message(chat_id, response, {'inline_keyboard': keyboard})
                     else:
                         response = "❌ No subscriptions found.\n"
                         response += "Sign up at the website to create subscriptions."
-                    send_telegram_message(chat_id, response)
+                        send_telegram_message(chat_id, response, get_main_menu_keyboard())
                 else:
-                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.")
+                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.", get_main_menu_keyboard())
             elif callback_data == 'delete':
                 if user:
                     subscriptions = SearchSubscription.query.filter_by(user_id=user.id).all()
@@ -1274,11 +1365,46 @@ def process_telegram_update(update):
                             response += f"{i}. ID: {sub.id} - {sub.notification_frequency.upper()}\n"
                         response += "\nUse /delete <id> to remove a specific subscription\n"
                         response += "Use /deleteall to remove all subscriptions"
-                        send_telegram_message(chat_id, response)
+                        send_telegram_message(chat_id, response, get_main_menu_keyboard())
                     else:
-                        send_telegram_message(chat_id, "❌ No subscriptions to delete.")
+                        send_telegram_message(chat_id, "❌ No subscriptions to delete.", get_main_menu_keyboard())
                 else:
-                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.")
+                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.", get_main_menu_keyboard())
+            
+            elif callback_data.startswith('delete_sub_'):
+                # Handle delete specific subscription
+                if user:
+                    try:
+                        sub_id = int(callback_data.replace('delete_sub_', ''))
+                        subscription = SearchSubscription.query.get(sub_id)
+                        if subscription and subscription.user_id == user.id:
+                            db.session.delete(subscription)
+                            db.session.commit()
+                            send_telegram_message(chat_id, f"✅ Subscription {sub_id} deleted successfully.", get_main_menu_keyboard())
+                        else:
+                            send_telegram_message(chat_id, "❌ Subscription not found or doesn't belong to you.", get_main_menu_keyboard())
+                    except Exception as e:
+                        send_telegram_message(chat_id, f"❌ Error deleting subscription: {str(e)}", get_main_menu_keyboard())
+                else:
+                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.", get_main_menu_keyboard())
+            
+            elif callback_data == 'delete_all':
+                # Handle delete all subscriptions
+                if user:
+                    try:
+                        subscriptions = SearchSubscription.query.filter_by(user_id=user.id).all()
+                        count = len(subscriptions)
+                        for sub in subscriptions:
+                            db.session.delete(sub)
+                        db.session.commit()
+                        send_telegram_message(chat_id, f"✅ Deleted {count} subscription(s).", get_main_menu_keyboard())
+                    except Exception as e:
+                        send_telegram_message(chat_id, f"❌ Error deleting subscriptions: {str(e)}", get_main_menu_keyboard())
+                else:
+                    send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.", get_main_menu_keyboard())
+            
+            elif callback_data == 'back_to_menu':
+                send_telegram_message(chat_id, "🏠 Welcome to PropertyNoti Bot!\n\nWhat would you like to do?", get_main_menu_keyboard())
             
             # Answer the callback query immediately for faster response
             bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -1300,24 +1426,7 @@ def process_telegram_update(update):
         if text == '/start':
             response = "🏠 Welcome to PropertyNoti Bot!\n\n"
             response += "What would you like to do?"
-            
-            # Create inline keyboard
-            keyboard = {
-                'inline_keyboard': [
-                    [
-                        {'text': '🔍 One-time Search', 'callback_data': 'search_now'},
-                        {'text': '📧 Subscribe for Alerts', 'callback_data': 'subscribe'}
-                    ],
-                    [
-                        {'text': '📋 View Subscriptions', 'callback_data': 'status'},
-                        {'text': '🗑️ Delete Subscriptions', 'callback_data': 'delete'}
-                    ]
-                ]
-            }
-            
-            print(f"Sending /start response to chat_id: {chat_id}")
-            send_telegram_message(chat_id, response, keyboard)
-            print(f"/start response sent")
+            send_telegram_message(chat_id, response, get_main_menu_keyboard())
         
         elif text == '/newsearch':
             response = "🔍 <b>New Property Search</b>\n\n"
@@ -1419,31 +1528,29 @@ def process_telegram_update(update):
                             send_telegram_message(chat_id, "❌ Invalid number. Please enter a number or use the skip button.")
                             return
                     state['step'] = 'sub_property_type'
-                    response = "What property type are you looking for?\n\n"
-                    response += "Options: house, apartment, condo, townhouse, land"
+                    response = "What property type are you looking for?"
                     keyboard = {
                         'inline_keyboard': [
-                            [{'text': '⏭️ Skip', 'callback_data': 'skip_sub_property_type'}]
+                            [
+                                {'text': '🏠 House', 'callback_data': 'sub_type_house'},
+                                {'text': '🏢 Apartment', 'callback_data': 'sub_type_apartment'}
+                            ],
+                            [
+                                {'text': '🏙️ Condo', 'callback_data': 'sub_type_condo'},
+                                {'text': '🏘️ Townhouse', 'callback_data': 'sub_type_townhouse'}
+                            ],
+                            [
+                                {'text': '🌳 Land', 'callback_data': 'sub_type_land'},
+                                {'text': '⏭️ Skip', 'callback_data': 'skip_sub_property_type'}
+                            ]
                         ]
                     }
                     send_telegram_message(chat_id, response, keyboard)
                 
                 elif step == 'sub_property_type':
-                    if text.lower() != 'skip':
-                        valid_types = ['house', 'apartment', 'condo', 'townhouse', 'land']
-                        if text.lower() in valid_types:
-                            criteria['property_type'] = text.lower()
-                        else:
-                            send_telegram_message(chat_id, f"❌ Invalid type. Choose from: {', '.join(valid_types)} or use the skip button.")
-                            return
-                    state['step'] = 'sub_min_sqft'
-                    response = "What's the minimum square footage?"
-                    keyboard = {
-                        'inline_keyboard': [
-                            [{'text': '⏭️ Skip', 'callback_data': 'skip_sub_min_sqft'}]
-                        ]
-                    }
-                    send_telegram_message(chat_id, response, keyboard)
+                    # Property type is now handled via buttons, ignore text input
+                    send_telegram_message(chat_id, "Please use the buttons above to select a property type or skip.")
+                    return
                 
                 elif step == 'sub_min_sqft':
                     if text.lower() != 'skip':
@@ -1553,31 +1660,29 @@ def process_telegram_update(update):
                         send_telegram_message(chat_id, "❌ Invalid number. Please enter a number or use the skip button.")
                         return
                 state['step'] = 'property_type'
-                response = "What property type are you looking for?\n\n"
-                response += "Options: house, apartment, condo, townhouse, land"
+                response = "What property type are you looking for?"
                 keyboard = {
                     'inline_keyboard': [
-                        [{'text': '⏭️ Skip', 'callback_data': 'skip_property_type'}]
+                        [
+                            {'text': '🏠 House', 'callback_data': 'type_house'},
+                            {'text': '🏢 Apartment', 'callback_data': 'type_apartment'}
+                        ],
+                        [
+                            {'text': '🏙️ Condo', 'callback_data': 'type_condo'},
+                            {'text': '🏘️ Townhouse', 'callback_data': 'type_townhouse'}
+                        ],
+                        [
+                            {'text': '🌳 Land', 'callback_data': 'type_land'},
+                            {'text': '⏭️ Skip', 'callback_data': 'skip_property_type'}
+                        ]
                     ]
                 }
                 send_telegram_message(chat_id, response, keyboard)
             
             elif step == 'property_type':
-                if text.lower() != 'skip':
-                    valid_types = ['house', 'apartment', 'condo', 'townhouse', 'land']
-                    if text.lower() in valid_types:
-                        criteria['property_type'] = text.lower()
-                    else:
-                        send_telegram_message(chat_id, f"❌ Invalid type. Choose from: {', '.join(valid_types)} or use the skip button.")
-                        return
-                state['step'] = 'min_sqft'
-                response = "What's the minimum square footage?"
-                keyboard = {
-                    'inline_keyboard': [
-                        [{'text': '⏭️ Skip', 'callback_data': 'skip_min_sqft'}]
-                    ]
-                }
-                send_telegram_message(chat_id, response, keyboard)
+                # Property type is now handled via buttons, ignore text input
+                send_telegram_message(chat_id, "Please use the buttons above to select a property type or skip.")
+                return
             
             elif step == 'min_sqft':
                 if text.lower() != 'skip':
