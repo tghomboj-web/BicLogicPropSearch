@@ -115,8 +115,10 @@ def search_properties(criteria):
     """Search for properties matching user criteria using Searchapi.io Zillow API"""
     searchapi_key = os.getenv('SEARCHAPI_API_KEY')
     
+    print(f"=== SEARCH PROPERTIES START ===")
     print(f"Search criteria: {criteria}")
     print(f"Searchapi.io API Key configured: {bool(searchapi_key)}")
+    print(f"API Key first 4 chars: {searchapi_key[:4] if searchapi_key else 'None'}")
     
     # Fall back to database search if API credentials not configured
     if not searchapi_key:
@@ -128,8 +130,10 @@ def search_properties(criteria):
     if criteria.get('zip_codes'):
         zip_list = [z.strip() for z in criteria['zip_codes'].split(',')]
         location = zip_list[0]  # Use first zip code for search
+        print(f"Searching in location: {location}")
     else:
         location = "United States"  # Default to broad search
+        print(f"Searching in location: {location} (default)")
     
     try:
         url = "https://www.searchapi.io/api/v1/search"
@@ -140,13 +144,18 @@ def search_properties(criteria):
             'num': 20  # Get more results to filter locally
         }
         
-        # Don't use API filters - they cause location bugs
-        # We'll filter locally instead
+        print(f"Making API request to: {url}")
+        print(f"Parameters: engine=zillow, q={location}, num=20")
         
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=15)
+        
+        print(f"API Response status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
+            print(f"API Response data keys: {data.keys()}")
+            print(f"Number of properties from API: {len(data.get('properties', []))}")
+            
             properties = []
             
             # Get requested zip codes for filtering
@@ -156,9 +165,11 @@ def search_properties(criteria):
             
             for item in data.get('properties', []):
                 item_zip = item.get('zipcode', '')
+                print(f"Processing property: {item.get('address')}, zip: {item_zip}")
                 
                 # Apply zip code filtering
                 if requested_zips and item_zip not in requested_zips:
+                    print(f"  Skipping: zip {item_zip} not in requested {requested_zips}")
                     continue
                 
                 # Extract property data
@@ -168,22 +179,29 @@ def search_properties(criteria):
                 sqft = item.get('sqft')
                 home_type = item.get('home_type', '')
                 
+                print(f"  Property details: price={price}, beds={beds}, baths={baths}, sqft={sqft}, type={home_type}")
+                
                 # Apply price filtering
                 if criteria.get('min_price') and price > 0 and price < criteria['min_price']:
+                    print(f"  Skipping: price {price} < min_price {criteria['min_price']}")
                     continue
                 if criteria.get('max_price') and price > 0 and price > criteria['max_price']:
+                    print(f"  Skipping: price {price} > max_price {criteria['max_price']}")
                     continue
                 
                 # Apply bedroom filtering
                 if criteria.get('bedrooms') and beds and beds < criteria['bedrooms']:
+                    print(f"  Skipping: beds {beds} < min_bedrooms {criteria['bedrooms']}")
                     continue
                 
                 # Apply bathroom filtering
                 if criteria.get('bathrooms') and baths and baths < criteria['bathrooms']:
+                    print(f"  Skipping: baths {baths} < min_bathrooms {criteria['bathrooms']}")
                     continue
                 
                 # Apply sqft filtering
                 if criteria.get('min_sqft') and sqft and sqft < criteria['min_sqft']:
+                    print(f"  Skipping: sqft {sqft} < min_sqft {criteria['min_sqft']}")
                     continue
                 
                 # Apply property type filtering
@@ -197,6 +215,7 @@ def search_properties(criteria):
                     }
                     expected_type = type_mapping.get(criteria['property_type'].lower(), '')
                     if expected_type and home_type != expected_type:
+                        print(f"  Skipping: type {home_type} != expected {expected_type}")
                         continue
                 
                 property_data = {
@@ -212,6 +231,7 @@ def search_properties(criteria):
                     'description': f"{item.get('status_text', 'Property for sale')} - {item.get('days_on_zillow', 0)} days on Zillow"
                 }
                 
+                print(f"  ✓ Property matched: {property_data['title']}")
                 properties.append(property_data)
                 
                 if len(properties) >= 5:
@@ -227,15 +247,18 @@ def search_properties(criteria):
             else:
                 print(f"Found {len(properties)} properties via Searchapi.io (no zip filter)")
             
+            print(f"=== SEARCH PROPERTIES END ===")
             return properties
         else:
             print(f"Searchapi.io error: {response.status_code} - {response.text}")
+            print("Falling back to database search")
             return search_properties_database(criteria)
             
     except Exception as e:
         print(f"Error searching Searchapi.io: {e}")
         import traceback
         traceback.print_exc()
+        print("Falling back to database search")
         return search_properties_database(criteria)
 
 def search_properties_database(criteria):
