@@ -290,7 +290,9 @@ def send_email_notification(user, properties, criteria=None):
         else:
             msg['Subject'] = 'No Properties Found - Search Results'
             
-        msg['From'] = smtp_username
+        # Use verified sender identity email for SendGrid
+        from_email = os.getenv('FROM_EMAIL', smtp_username)
+        msg['From'] = from_email
         msg['To'] = user.email
         
         # Build search criteria section
