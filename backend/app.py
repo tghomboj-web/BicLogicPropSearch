@@ -11,11 +11,22 @@ from email.mime.multipart import MIMEMultipart
 import threading
 from datetime import datetime
 import atexit
+import logging
+import sys
 
 # Telegram polling state
 telegram_conversation_state = {}  # Store conversation state for each user
 
 load_dotenv()
+
+# Configure logging for Render
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout,
+    force=True
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -113,17 +124,17 @@ with app.app_context():
 # Real property search using Searchapi.io (Zillow API)
 def search_properties(criteria):
     """Search for properties matching user criteria using Searchapi.io Zillow API"""
-    print("!!! SEARCH PROPERTIES FUNCTION CALLED !!!")
+    logger.info("!!! SEARCH PROPERTIES FUNCTION CALLED !!!")
     searchapi_key = os.getenv('SEARCHAPI_API_KEY')
     
-    print(f"=== SEARCH PROPERTIES START ===")
-    print(f"Search criteria: {criteria}")
-    print(f"Searchapi.io API Key configured: {bool(searchapi_key)}")
-    print(f"API Key first 4 chars: {searchapi_key[:4] if searchapi_key else 'None'}")
+    logger.info(f"=== SEARCH PROPERTIES START ===")
+    logger.info(f"Search criteria: {criteria}")
+    logger.info(f"Searchapi.io API Key configured: {bool(searchapi_key)}")
+    logger.info(f"API Key first 4 chars: {searchapi_key[:4] if searchapi_key else 'None'}")
     
     # Fall back to database search if API credentials not configured
     if not searchapi_key:
-        print("Searchapi.io API key not configured, using database search")
+        logger.info("Searchapi.io API key not configured, using database search")
         return search_properties_database(criteria)
     
     # Build location query
@@ -131,10 +142,10 @@ def search_properties(criteria):
     if criteria.get('zip_codes'):
         zip_list = [z.strip() for z in criteria['zip_codes'].split(',')]
         location = zip_list[0]  # Use first zip code for search
-        print(f"Searching in location: {location}")
+        logger.info(f"Searching in location: {location}")
     else:
         location = "United States"  # Default to broad search
-        print(f"Searching in location: {location} (default)")
+        logger.info(f"Searching in location: {location} (default)")
     
     try:
         url = "https://www.searchapi.io/api/v1/search"
@@ -145,17 +156,17 @@ def search_properties(criteria):
             'num': 20  # Get more results to filter locally
         }
         
-        print(f"Making API request to: {url}")
-        print(f"Parameters: engine=zillow, q={location}, num=20")
+        logger.info(f"Making API request to: {url}")
+        logger.info(f"Parameters: engine=zillow, q={location}, num=20")
         
         response = requests.get(url, params=params, timeout=15)
         
-        print(f"API Response status: {response.status_code}")
+        logger.info(f"API Response status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            print(f"API Response data keys: {data.keys()}")
-            print(f"Number of properties from API: {len(data.get('properties', []))}")
+            logger.info(f"API Response data keys: {data.keys()}")
+            logger.info(f"Number of properties from API: {len(data.get('properties', []))}")
             
             properties = []
             
@@ -166,11 +177,11 @@ def search_properties(criteria):
             
             for item in data.get('properties', []):
                 item_zip = item.get('zipcode', '')
-                print(f"Processing property: {item.get('address')}, zip: {item_zip}")
+                logger.info(f"Processing property: {item.get('address')}, zip: {item_zip}")
                 
                 # Apply zip code filtering
                 if requested_zips and item_zip not in requested_zips:
-                    print(f"  Skipping: zip {item_zip} not in requested {requested_zips}")
+                    logger.info(f"  Skipping: zip {item_zip} not in requested {requested_zips}")
                     continue
                 
                 # Extract property data
@@ -180,29 +191,29 @@ def search_properties(criteria):
                 sqft = item.get('sqft')
                 home_type = item.get('home_type', '')
                 
-                print(f"  Property details: price={price}, beds={beds}, baths={baths}, sqft={sqft}, type={home_type}")
+                logger.info(f"  Property details: price={price}, beds={beds}, baths={baths}, sqft={sqft}, type={home_type}")
                 
                 # Apply price filtering
                 if criteria.get('min_price') and price > 0 and price < criteria['min_price']:
-                    print(f"  Skipping: price {price} < min_price {criteria['min_price']}")
+                    logger.info(f"  Skipping: price {price} < min_price {criteria['min_price']}")
                     continue
                 if criteria.get('max_price') and price > 0 and price > criteria['max_price']:
-                    print(f"  Skipping: price {price} > max_price {criteria['max_price']}")
+                    logger.info(f"  Skipping: price {price} > max_price {criteria['max_price']}")
                     continue
                 
                 # Apply bedroom filtering
                 if criteria.get('bedrooms') and beds and beds < criteria['bedrooms']:
-                    print(f"  Skipping: beds {beds} < min_bedrooms {criteria['bedrooms']}")
+                    logger.info(f"  Skipping: beds {beds} < min_bedrooms {criteria['bedrooms']}")
                     continue
                 
                 # Apply bathroom filtering
                 if criteria.get('bathrooms') and baths and baths < criteria['bathrooms']:
-                    print(f"  Skipping: baths {baths} < min_bathrooms {criteria['bathrooms']}")
+                    logger.info(f"  Skipping: baths {baths} < min_bathrooms {criteria['bathrooms']}")
                     continue
                 
                 # Apply sqft filtering
                 if criteria.get('min_sqft') and sqft and sqft < criteria['min_sqft']:
-                    print(f"  Skipping: sqft {sqft} < min_sqft {criteria['min_sqft']}")
+                    logger.info(f"  Skipping: sqft {sqft} < min_sqft {criteria['min_sqft']}")
                     continue
                 
                 # Apply property type filtering
@@ -216,7 +227,7 @@ def search_properties(criteria):
                     }
                     expected_type = type_mapping.get(criteria['property_type'].lower(), '')
                     if expected_type and home_type != expected_type:
-                        print(f"  Skipping: type {home_type} != expected {expected_type}")
+                        logger.info(f"  Skipping: type {home_type} != expected {expected_type}")
                         continue
                 
                 property_data = {
@@ -232,7 +243,7 @@ def search_properties(criteria):
                     'description': f"{item.get('status_text', 'Property for sale')} - {item.get('days_on_zillow', 0)} days on Zillow"
                 }
                 
-                print(f"  ✓ Property matched: {property_data['title']}")
+                logger.info(f"  ✓ Property matched: {property_data['title']}")
                 properties.append(property_data)
                 
                 if len(properties) >= 5:
@@ -240,26 +251,26 @@ def search_properties(criteria):
             
             # Log results
             if requested_zips:
-                print(f"Found {len(properties)} properties in exact zip codes {requested_zips}")
+                logger.info(f"Found {len(properties)} properties in exact zip codes {requested_zips}")
                 if len(properties) == 0:
-                    print(f"No properties found in exact zip codes {requested_zips}")
-                    print("Falling back to database search")
+                    logger.info(f"No properties found in exact zip codes {requested_zips}")
+                    logger.info("Falling back to database search")
                     return search_properties_database(criteria)
             else:
-                print(f"Found {len(properties)} properties via Searchapi.io (no zip filter)")
+                logger.info(f"Found {len(properties)} properties via Searchapi.io (no zip filter)")
             
-            print(f"=== SEARCH PROPERTIES END ===")
+            logger.info(f"=== SEARCH PROPERTIES END ===")
             return properties
         else:
-            print(f"Searchapi.io error: {response.status_code} - {response.text}")
-            print("Falling back to database search")
+            logger.info(f"Searchapi.io error: {response.status_code} - {response.text}")
+            logger.info("Falling back to database search")
             return search_properties_database(criteria)
             
     except Exception as e:
-        print(f"Error searching Searchapi.io: {e}")
+        logger.info(f"Error searching Searchapi.io: {e}")
         import traceback
-        traceback.print_exc()
-        print("Falling back to database search")
+        traceback.logger.info_exc()
+        logger.info("Falling back to database search")
         return search_properties_database(criteria)
 
 def search_properties_database(criteria):
@@ -288,23 +299,23 @@ def search_properties_database(criteria):
 # Email notification
 def send_email_notification(user, properties, criteria=None):
     """Send property notification email"""
-    print("=== EMAIL NOTIFICATION START ===")
+    logger.info("=== EMAIL NOTIFICATION START ===")
     try:
         smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
         smtp_username = os.getenv('SMTP_USERNAME')
         smtp_password = os.getenv('SMTP_PASSWORD')
         
-        print(f"Email notification attempt:")
-        print(f"  To: {user.email}")
-        print(f"  Properties found: {len(properties) if properties else 0}")
-        print(f"  SMTP server: {smtp_server}")
-        print(f"  SMTP port: {smtp_port}")
-        print(f"  SMTP username: {smtp_username}")
-        print(f"  SMTP password configured: {bool(smtp_password)}")
+        logger.info(f"Email notification attempt:")
+        logger.info(f"  To: {user.email}")
+        logger.info(f"  Properties found: {len(properties) if properties else 0}")
+        logger.info(f"  SMTP server: {smtp_server}")
+        logger.info(f"  SMTP port: {smtp_port}")
+        logger.info(f"  SMTP username: {smtp_username}")
+        logger.info(f"  SMTP password configured: {bool(smtp_password)}")
         
         if not smtp_username or not smtp_password:
-            print("SMTP credentials not configured")
+            logger.info("SMTP credentials not configured")
             return False
         
         msg = MIMEMultipart('alternative')
@@ -574,27 +585,27 @@ def send_email_notification(user, properties, criteria=None):
             server.send_message(msg)
             server.quit()
             
-            print(f"Email sent successfully to {user.email}")
+            logger.info(f"Email sent successfully to {user.email}")
             return True
         except Exception as e:
-            print(f"SMTP connection failed: {e}")
+            logger.info(f"SMTP connection failed: {e}")
             # Try fallback to different port
-            print("Trying fallback port 2525...")
+            logger.info("Trying fallback port 2525...")
             try:
                 server = smtplib.SMTP(smtp_server, 2525, timeout=10)
                 server.starttls()
                 server.login(smtp_username, smtp_password)
                 server.send_message(msg)
                 server.quit()
-                print(f"Email sent successfully to {user.email} via fallback port")
+                logger.info(f"Email sent successfully to {user.email} via fallback port")
                 return True
             except Exception as fallback_error:
-                print(f"Fallback also failed: {fallback_error}")
+                logger.info(f"Fallback also failed: {fallback_error}")
                 raise
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logger.info(f"Error sending email: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.logger.info_exc()
         return False
 
 # Telegram notification
@@ -603,7 +614,7 @@ def send_telegram_notification(user, properties):
     try:
         bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         if not bot_token or not user.telegram_id:
-            print("Telegram bot token or user telegram_id not configured")
+            logger.info("Telegram bot token or user telegram_id not configured")
             return False
         
         message = f"🏠 <b>New Property Matches Found!</b>\n\n"
@@ -635,21 +646,21 @@ def send_telegram_notification(user, properties):
         
         response = requests.post(url, data=data)
         if response.status_code == 200:
-            print(f"Telegram message sent to {user.telegram_id}")
+            logger.info(f"Telegram message sent to {user.telegram_id}")
             return True
         else:
-            print(f"Telegram API error: {response.text}")
+            logger.info(f"Telegram API error: {response.text}")
             return False
     except Exception as e:
-        print(f"Error sending Telegram notification: {e}")
+        logger.info(f"Error sending Telegram notification: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.logger.info_exc()
         return False
 
 # Scheduled task to check for new properties
 def check_and_notify_users():
     """Check all subscriptions and send notifications for matching properties"""
-    print("Running scheduled property check...")
+    logger.info("Running scheduled property check...")
     with app.app_context():
         from datetime import datetime, timedelta
         now = datetime.utcnow()
@@ -799,22 +810,22 @@ def subscribe():
             'min_sqft': subscription.min_sqft
         }
         
-        print(f"=== WEBSITE SUBSCRIPTION ===")
-        print(f"User: {user.email}")
-        print(f"Criteria: {criteria}")
+        logger.info(f"=== WEBSITE SUBSCRIPTION ===")
+        logger.info(f"User: {user.email}")
+        logger.info(f"Criteria: {criteria}")
         
         properties = search_properties(criteria)
-        print(f"Properties found: {len(properties)}")
+        logger.info(f"Properties found: {len(properties)}")
         
         # Send immediate notification (email always sent, telegram only if properties found)
-        print("Calling send_email_notification...")
+        logger.info("Calling send_email_notification...")
         try:
             send_email_notification(user, properties, criteria)
-            print("send_email_notification completed successfully")
+            logger.info("send_email_notification completed successfully")
         except Exception as e:
-            print(f"Email notification failed: {e}")
+            logger.info(f"Email notification failed: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.info_exc()
         
         if properties:
             send_telegram_notification(user, properties)
@@ -869,9 +880,9 @@ def add_property():
 
 @app.route('/api/test-notification/<int:user_id>', methods=['POST'])
 def test_notification(user_id):
-    print(f"=== TEST NOTIFICATION ENDPOINT ===")
+    logger.info(f"=== TEST NOTIFICATION ENDPOINT ===")
     user = User.query.get_or_404(user_id)
-    print(f"User: {user.email}")
+    logger.info(f"User: {user.email}")
     
     # Use broader criteria for testing
     criteria = {
@@ -883,14 +894,14 @@ def test_notification(user_id):
         'bathrooms': None,
         'min_sqft': None
     }
-    print(f"Test notification for user {user_id} with criteria: {criteria}")
+    logger.info(f"Test notification for user {user_id} with criteria: {criteria}")
     properties = search_properties(criteria)
-    print(f"Found {len(properties)} properties")
+    logger.info(f"Found {len(properties)} properties")
     
     if properties:
-        print("Sending email notification...")
+        logger.info("Sending email notification...")
         email_sent = send_email_notification(user, properties)
-        print(f"Email sent result: {email_sent}")
+        logger.info(f"Email sent result: {email_sent}")
         telegram_sent = send_telegram_notification(user, properties)
     else:
         email_sent = False
@@ -907,7 +918,7 @@ def test_notification(user_id):
 @app.route('/api/test-email', methods=['POST'])
 def test_email_endpoint():
     """Test email sending directly"""
-    print(f"=== TEST EMAIL ENDPOINT ===")
+    logger.info(f"=== TEST EMAIL ENDPOINT ===")
     data = request.json
     email = data.get('email', 'test@example.com')
     
@@ -921,9 +932,9 @@ def test_email_endpoint():
     
     # Test with empty properties
     criteria = {'test': True}
-    print(f"Testing email to: {email}")
+    logger.info(f"Testing email to: {email}")
     result = send_email_notification(test_user, [], criteria)
-    print(f"Email test result: {result}")
+    logger.info(f"Email test result: {result}")
     
     return jsonify({
         'success': True,
@@ -947,10 +958,10 @@ def check_api_config():
 @app.route('/api/quick-search', methods=['POST'])
 def quick_search():
     """One-time property search"""
-    print("!!! QUICK SEARCH ENDPOINT CALLED !!!")
-    print(f"=== QUICK SEARCH START ===")
+    logger.info("!!! QUICK SEARCH ENDPOINT CALLED !!!")
+    logger.info(f"=== QUICK SEARCH START ===")
     data = request.json
-    print(f"Search request data: {data}")
+    logger.info(f"Search request data: {data}")
     try:
         # Validate required fields
         if not data.get('email'):
@@ -978,7 +989,7 @@ def quick_search():
             db.session.add(user)
             db.session.commit()
         
-        print(f"User: {user.email}")
+        logger.info(f"User: {user.email}")
         
         # Search for properties
         criteria = {
@@ -991,17 +1002,17 @@ def quick_search():
             'min_sqft': data.get('min_sqft')
         }
         
-        print(f"Search criteria: {criteria}")
+        logger.info(f"Search criteria: {criteria}")
         properties = search_properties(criteria)
-        print(f"Properties found: {len(properties)}")
+        logger.info(f"Properties found: {len(properties)}")
         
         # Send notifications if properties found
         if properties:
-            print("Sending notifications...")
+            logger.info("Sending notifications...")
             send_email_notification(user, properties)
             send_telegram_notification(user, properties)
         else:
-            print("No properties found, skipping notifications")
+            logger.info("No properties found, skipping notifications")
         
         return jsonify({
             'success': True,
@@ -1009,9 +1020,9 @@ def quick_search():
             'properties': properties
         })
     except Exception as e:
-        print(f"Error in quick search: {e}")
+        logger.info(f"Error in quick search: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.logger.info_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Scheduler setup
@@ -1148,9 +1159,9 @@ def send_telegram_message(chat_id, text, reply_markup=None):
         response = requests.post(url, data=data)
         
         if response.status_code != 200:
-            print(f"Telegram API error: {response.status_code} - {response.text}")
+            logger.info(f"Telegram API error: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"Error sending Telegram message: {e}")
+        logger.info(f"Error sending Telegram message: {e}")
 
 def process_telegram_update(update):
     """Process a single Telegram update"""
@@ -1396,16 +1407,16 @@ def process_telegram_update(update):
                     send_telegram_message(chat_id, response, keyboard)
             
             elif callback_data in ['freq_daily', 'freq_weekly', 'freq_monthly']:
-                print(f"Frequency button clicked: {callback_data} for chat_id: {chat_id}")
+                logger.info(f"Frequency button clicked: {callback_data} for chat_id: {chat_id}")
                 
                 state = telegram_conversation_state.get(str(chat_id))
-                print(f"Conversation state: {state}")
+                logger.info(f"Conversation state: {state}")
                 
                 if state:
                     try:
                         frequency = callback_data.replace('freq_', '')
                         state['criteria']['notification_frequency'] = frequency
-                        print(f"Creating subscription with frequency: {frequency}")
+                        logger.info(f"Creating subscription with frequency: {frequency}")
                         # Execute subscription creation
                         del telegram_conversation_state[str(chat_id)]
                         
@@ -1434,7 +1445,7 @@ def process_telegram_update(update):
                         )
                         db.session.add(subscription)
                         db.session.commit()
-                        print(f"Subscription created successfully: {subscription.id}")
+                        logger.info(f"Subscription created successfully: {subscription.id}")
                         
                         # Send immediate response to user first
                         send_telegram_message(chat_id, f"✅ Subscription created successfully!\n\nWe'll send you {frequency} notifications at {email}.", get_main_menu_keyboard())
@@ -1463,21 +1474,21 @@ def process_telegram_update(update):
                                     if properties:
                                         send_telegram_notification(user, properties)
                             except Exception as e:
-                                print(f"Error in background email sending: {e}")
+                                logger.info(f"Error in background email sending: {e}")
                                 import traceback
-                                traceback.print_exc()
+                                traceback.logger.info_exc()
                         
                         import threading
                         email_thread = threading.Thread(target=send_background_email)
                         email_thread.start()
                         
                     except Exception as e:
-                        print(f"Error creating subscription: {e}")
+                        logger.info(f"Error creating subscription: {e}")
                         import traceback
-                        traceback.print_exc()
+                        traceback.logger.info_exc()
                         send_telegram_message(chat_id, f"❌ Error creating subscription: {str(e)}", get_main_menu_keyboard())
                 else:
-                    print(f"No conversation state found for chat_id: {chat_id}")
+                    logger.info(f"No conversation state found for chat_id: {chat_id}")
                     send_telegram_message(chat_id, "❌ Session expired. Please start subscription again with /start", get_main_menu_keyboard())
                     
                     # Answer the callback query
@@ -1978,29 +1989,29 @@ def process_telegram_update(update):
             response = "❓ Unknown command. Type /help for available commands."
             send_telegram_message(chat_id, response)
     except Exception as e:
-        print(f"Error processing update: {e}")
+        logger.info(f"Error processing update: {e}")
         import traceback
-        traceback.print_exc()
+        traceback.logger.info_exc()
 
 def telegram_polling():
     """Poll for Telegram updates"""
     bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
     if not bot_token:
-        print("Telegram bot token not configured, polling disabled")
+        logger.info("Telegram bot token not configured, polling disabled")
         return
     
     # Clear any existing webhook first with drop_pending_updates
     try:
         url = f"https://api.telegram.org/bot{bot_token}/deleteWebhook"
         requests.get(url, params={'drop_pending_updates': True}, timeout=5)
-        print("Webhook cleared with drop_pending_updates")
+        logger.info("Webhook cleared with drop_pending_updates")
         import time
         time.sleep(3)  # Wait for webhook to clear
     except Exception as e:
-        print(f"Error clearing webhook: {e}")
+        logger.info(f"Error clearing webhook: {e}")
     
     offset = 0
-    print("Starting Telegram polling...")
+    logger.info("Starting Telegram polling...")
     
     while True:
         try:
@@ -2013,19 +2024,19 @@ def telegram_polling():
                 if data.get('ok'):
                     updates = data.get('result', [])
                     if updates:
-                        print(f"Received {len(updates)} update(s)")
+                        logger.info(f"Received {len(updates)} update(s)")
                         for update in updates:
-                            print(f"Processing update: {update.get('update_id')}")
+                            logger.info(f"Processing update: {update.get('update_id')}")
                             with app.app_context():
                                 process_telegram_update(update)
                             offset = update.get('update_id', 0) + 1
                 else:
-                    print(f"Telegram API error: {data.get('description')}")
+                    logger.info(f"Telegram API error: {data.get('description')}")
                     import time
                     time.sleep(2)
             elif response.status_code == 409:
                 # Conflict error - clear webhook aggressively
-                print("Telegram polling conflict (409), clearing webhook...")
+                logger.info("Telegram polling conflict (409), clearing webhook...")
                 try:
                     url = f"https://api.telegram.org/bot{bot_token}/deleteWebhook"
                     requests.get(url, params={'drop_pending_updates': True}, timeout=5)
@@ -2037,14 +2048,14 @@ def telegram_polling():
                 import time
                 time.sleep(10)
             else:
-                print(f"Telegram polling error: {response.status_code}")
+                logger.info(f"Telegram polling error: {response.status_code}")
                 import time
                 time.sleep(2)
         
         except Exception as e:
-            print(f"Telegram polling error: {e}")
+            logger.info(f"Telegram polling error: {e}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.info_exc()
             import time
             time.sleep(5)
 
@@ -2056,9 +2067,9 @@ if __name__ == '__main__':
     if enable_telegram_polling and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         polling_thread = threading.Thread(target=telegram_polling, daemon=True)
         polling_thread.start()
-        print("Starting Flask server with Telegram polling enabled")
+        logger.info("Starting Flask server with Telegram polling enabled")
     else:
-        print("Starting Flask server (polling disabled or already running)")
+        logger.info("Starting Flask server (polling disabled or already running)")
     
     # Use PORT environment variable for Render deployment
     port = int(os.environ.get('PORT', 5000))
