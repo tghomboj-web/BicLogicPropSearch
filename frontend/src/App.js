@@ -412,7 +412,7 @@ function App() {
         )}
 
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Submitting...' : (mode === 'search' ? 'Search Now' : 'Subscribe')}
+          {mode === 'search' ? 'Search Now' : 'Subscribe'}
         </button>
       </form>
 
