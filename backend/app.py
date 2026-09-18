@@ -1157,9 +1157,10 @@ def telegram_webhook():
         response += "Available commands:\n"
         response += "/search - Search for properties now\n"
         response += "/status - View your current search criteria\n"
-        response += "/help - Show this help message\n\n"
-        response += "To get started, sign up at the website and provide your Telegram ID."
-        send_telegram_message(chat_id, response)
+        response += "/help - Show this help message\n"
+        response += "/connect <code> - Connect your account using a code from the website\n\n"
+        response += "💡 Use the button menu below for easier navigation."
+        send_telegram_message(chat_id, response, get_main_menu_keyboard())
     
     elif text == '/help':
         response = "🏠 PropertyNoti Bot Commands:\n\n"
@@ -1226,6 +1227,9 @@ def get_main_menu_keyboard():
             [
                 {'text': '📋 View Subscriptions', 'callback_data': 'status'},
                 {'text': '🗑️ Delete Subscriptions', 'callback_data': 'delete'}
+            ],
+            [
+                {'text': '🔗 Connect Account', 'callback_data': 'connect_account'}
             ]
         ]
     }
@@ -1635,6 +1639,17 @@ def process_telegram_update(update):
                         send_telegram_message(chat_id, "❌ No subscriptions to delete.", get_main_menu_keyboard())
                 else:
                     send_telegram_message(chat_id, "❌ No account found. Please sign up at the website first.", get_main_menu_keyboard())
+
+            elif callback_data == 'connect_account':
+                response = "🔗 <b>Connect Your Account</b>\n\n"
+                response += "To connect your Telegram account to the website:\n\n"
+                response += "1. Go to the website: https://tghomboj-web.github.io/BicLogicPropSearch/\n"
+                response += "2. Enter your email address\n"
+                response += "3. Click 'Connect Telegram' button\n"
+                response += "4. Copy the 6-digit code shown\n"
+                response += "5. Send it here: /connect <code>\n\n"
+                response += "Example: /connect ABC123"
+                send_telegram_message(chat_id, response)
             
             elif callback_data.startswith('delete_sub_'):
                 # Handle delete specific subscription
@@ -1690,7 +1705,8 @@ def process_telegram_update(update):
         # Handle commands
         if text == '/start':
             response = "🏠 Welcome to PropertyNoti Bot!\n\n"
-            response += "What would you like to do?"
+            response += "What would you like to do?\n\n"
+            response += "💡 <b>New here?</b> Start by connecting your account using the 'Connect Account' button below."
             send_telegram_message(chat_id, response, get_main_menu_keyboard())
         
         elif text == '/newsearch':
