@@ -2108,34 +2108,6 @@ def process_telegram_update(update):
             else:
                 # Not a valid code, treat as unknown command
                 send_telegram_message(chat_id, "❓ Unknown command. Type /help for available commands.", get_main_menu_keyboard())
-            
-            # Find the connection code
-            connection_code = TelegramConnectionCode.query.filter_by(code=code, used=False).first()
-            
-            if not connection_code:
-                send_telegram_message(chat_id, "❌ Invalid or expired code. Please generate a new code from the website.")
-                return
-            
-            # Check if code is expired
-            if connection_code.expires_at < datetime.now():
-                send_telegram_message(chat_id, "❌ Code has expired. Please generate a new code from the website.")
-                return
-            
-            # Get the user associated with this code
-            user = User.query.get(connection_code.user_id)
-            if not user:
-                send_telegram_message(chat_id, "❌ User not found. Please try again.")
-                return
-            
-            # Update user's Telegram ID
-            user.telegram_id = str(chat_id)
-            connection_code.telegram_id = str(chat_id)
-            connection_code.used = True
-            db.session.commit()
-            
-            logger.info(f"Successfully connected user {user.email} to Telegram ID {chat_id}")
-            
-            send_telegram_message(chat_id, f"✅ Successfully connected!\n\nYour Telegram account is now linked to {user.email}.\n\nYou can now receive property notifications via Telegram.")
         
         elif text == '/status':
             if user:
