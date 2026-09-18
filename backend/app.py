@@ -1023,7 +1023,7 @@ atexit.register(lambda: scheduler.shutdown())
 def home():
     return jsonify({
         'message': 'Property Notification API',
-        'version': '1.0.0',
+        'version': '1.0.1',
         'endpoints': {
             'signup': '/api/signup',
             'users': '/api/users',
