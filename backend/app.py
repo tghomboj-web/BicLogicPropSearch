@@ -305,7 +305,7 @@ def search_properties(criteria):
     except Exception as e:
         logger.info(f"Error searching Searchapi.io: {e}")
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
         logger.info("Falling back to database search")
         return search_properties_database(criteria)
 
@@ -641,7 +641,7 @@ def send_email_notification(user, properties, criteria=None):
     except Exception as e:
         logger.info(f"Error sending email: {e}")
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
         return False
 
 # Telegram notification
@@ -690,7 +690,7 @@ def send_telegram_notification(user, properties):
     except Exception as e:
         logger.info(f"Error sending Telegram notification: {e}")
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
         return False
 
 # Scheduled task to check for new properties
@@ -861,7 +861,7 @@ def subscribe():
         except Exception as e:
             logger.info(f"Email notification failed: {e}")
             import traceback
-            traceback.logger.info_exc()
+            traceback.print_exc()
         
         if properties:
             send_telegram_notification(user, properties)
@@ -1110,7 +1110,7 @@ def quick_search():
     except Exception as e:
         logger.info(f"Error in quick search: {e}")
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Scheduler setup
@@ -1564,7 +1564,7 @@ def process_telegram_update(update):
                             except Exception as e:
                                 logger.info(f"Error in background email sending: {e}")
                                 import traceback
-                                traceback.logger.info_exc()
+                                traceback.print_exc()
                         
                         import threading
                         email_thread = threading.Thread(target=send_background_email)
@@ -1573,7 +1573,7 @@ def process_telegram_update(update):
                     except Exception as e:
                         logger.info(f"Error creating subscription: {e}")
                         import traceback
-                        traceback.logger.info_exc()
+                        traceback.print_exc()
                         send_telegram_message(chat_id, f"❌ Error creating subscription: {str(e)}", get_main_menu_keyboard())
                 else:
                     logger.info(f"No conversation state found for chat_id: {chat_id}")
@@ -2114,7 +2114,7 @@ def process_telegram_update(update):
     except Exception as e:
         logger.info(f"Error processing update: {e}")
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
 
 def telegram_polling():
     """Poll for Telegram updates"""
@@ -2178,7 +2178,7 @@ def telegram_polling():
         except Exception as e:
             logger.info(f"Telegram polling error: {e}")
             import traceback
-            traceback.logger.info_exc()
+            traceback.print_exc()
             import time
             time.sleep(5)
 
