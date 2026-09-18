@@ -26,6 +26,7 @@ function App() {
   const [telegramCode, setTelegramCode] = useState(null);
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [codeExpiry, setCodeExpiry] = useState(null);
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -107,6 +108,7 @@ function App() {
     }
     
     setLoading(true);
+    setShowLoadingModal(true);
 
     try {
       const endpoint = mode === 'search' ? `${API_URL}/quick-search` : `${API_URL}/subscribe`;
@@ -126,6 +128,7 @@ function App() {
       setError(err.response?.data?.error || 'Failed to submit. Please try again.');
     } finally {
       setLoading(false);
+      setShowLoadingModal(false);
     }
   };
 
@@ -134,13 +137,26 @@ function App() {
       <div className="container">
         <div className="success-message">
           <h1>🎉 {mode === 'search' ? 'Search Complete!' : 'Subscription Created!'}</h1>
-          <p>{mode === 'search' 
+          <p>{mode === 'search'
             ? 'Properties matching your criteria have been sent to your email and Telegram.'
             : 'You have been subscribed to property notifications.'}
           </p>
           <button onClick={() => { setSubmitted(false); setMode('search'); }} className="btn">
             {mode === 'search' ? 'Search Again' : 'Create Another Subscription'}
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showLoadingModal) {
+    return (
+      <div className="loading-modal">
+        <div className="loading-content">
+          <div className="spinner"></div>
+          <h2>Processing Your Request</h2>
+          <p>Please do not close this window while we search for properties matching your criteria.</p>
+          <p className="loading-text">This may take a moment...</p>
         </div>
       </div>
     );
