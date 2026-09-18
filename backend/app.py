@@ -1007,6 +1007,9 @@ def quick_search():
             'properties': properties
         })
     except Exception as e:
+        print(f"Error in quick search: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Scheduler setup
