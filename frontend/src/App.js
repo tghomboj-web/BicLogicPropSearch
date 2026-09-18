@@ -154,7 +154,7 @@ function App() {
         <div className="loading-content">
           <div className="spinner"></div>
           <h2>Processing Your Request</h2>
-          <p>Please do not close this window while we search for properties matching your criteria.</p>
+          <p>Please do not close this window while we process your request.</p>
           <p className="loading-text">This may take a moment...</p>
         </div>
       </div>
