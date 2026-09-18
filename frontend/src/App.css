@@ -46,38 +46,6 @@ body {
   font-weight: 400;
 }
 
-.mode-toggle {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  background: #f3f4f6;
-  padding: 6px;
-  border-radius: 12px;
-}
-
-.mode-btn {
-  flex: 1;
-  padding: 12px 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: transparent;
-  color: #6b7280;
-}
-
-.mode-btn:hover {
-  background: #e5e7eb;
-}
-
-.mode-btn.active {
-  background: white;
-  color: #667eea;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .success-message {
   text-align: center;
   padding: 40px 20px;

@@ -5,7 +5,6 @@ import './App.css';
 const API_URL = 'https://biclogicpropsearch.onrender.com/api';
 
 function App() {
-  const [mode, setMode] = useState('search'); // 'search' or 'subscribe'
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -17,7 +16,7 @@ function App() {
     bedrooms: '',
     bathrooms: '',
     min_sqft: '',
-    notification_frequency: 'daily' // 'daily', 'weekly', 'monthly'
+    notification_frequency: 'once' // 'once', 'daily', 'weekly', 'monthly'
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -101,17 +100,17 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     // Validate form
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
     setShowLoadingModal(true);
 
     try {
-      const endpoint = mode === 'search' ? `${API_URL}/quick-search` : `${API_URL}/subscribe`;
+      const endpoint = formData.notification_frequency === 'once' ? `${API_URL}/quick-search` : `${API_URL}/subscribe`;
       const response = await axios.post(endpoint, {
         ...formData,
         min_price: formData.min_price ? parseInt(formData.min_price) : null,
@@ -120,7 +119,7 @@ function App() {
         bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
         min_sqft: formData.min_sqft ? parseInt(formData.min_sqft) : null
       });
-      
+
       if (response.data.success) {
         setSubmitted(true);
       }
@@ -136,13 +135,13 @@ function App() {
     return (
       <div className="container">
         <div className="success-message">
-          <h1>🎉 {mode === 'search' ? 'Search Complete!' : 'Subscription Created!'}</h1>
-          <p>{mode === 'search'
+          <h1>🎉 {formData.notification_frequency === 'once' ? 'Search Complete!' : 'Subscription Created!'}</h1>
+          <p>{formData.notification_frequency === 'once'
             ? 'Properties matching your criteria have been sent to your email and Telegram.'
             : 'You will receive property notifications on your selected schedule.'}
           </p>
-          <button onClick={() => { setSubmitted(false); setMode('search'); }} className="btn">
-            {mode === 'search' ? 'Search Again' : 'Create Another Subscription'}
+          <button onClick={() => { setSubmitted(false); }} className="btn">
+            {formData.notification_frequency === 'once' ? 'Search Again' : 'Create Another Subscription'}
           </button>
         </div>
       </div>
@@ -166,22 +165,7 @@ function App() {
     <div className="container">
       <div className="header">
         <h1>🏠 Property Alerts</h1>
-        <p>Search once or subscribe for recurring property notifications</p>
-      </div>
-
-      <div className="mode-toggle">
-        <button
-          className={`mode-btn ${mode === 'search' ? 'active' : ''}`}
-          onClick={() => setMode('search')}
-        >
-          🔍 One-time Search
-        </button>
-        <button
-          className={`mode-btn ${mode === 'subscribe' ? 'active' : ''}`}
-          onClick={() => setMode('subscribe')}
-        >
-          📧 Recurring Alerts
-        </button>
+        <p>Search for properties or subscribe to recurring notifications</p>
       </div>
 
       <form onSubmit={handleSubmit} className="form">
@@ -391,27 +375,26 @@ function App() {
           </div>
         </div>
 
-        {mode === 'subscribe' && (
-          <div className="form-section">
-            <h2>Notification Frequency</h2>
-            <div className="form-group">
-              <label htmlFor="notification_frequency">How often?</label>
-              <select
-                id="notification_frequency"
-                name="notification_frequency"
-                value={formData.notification_frequency}
-                onChange={handleChange}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
+        <div className="form-section">
+          <h2>Notification Frequency</h2>
+          <div className="form-group">
+            <label htmlFor="notification_frequency">How often?</label>
+            <select
+              id="notification_frequency"
+              name="notification_frequency"
+              value={formData.notification_frequency}
+              onChange={handleChange}
+            >
+              <option value="once">One-time only</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
           </div>
-        )}
+        </div>
 
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {mode === 'search' ? 'Search Now' : 'Subscribe'}
+          Submit
         </button>
       </form>
 
@@ -419,11 +402,8 @@ function App() {
         <h3>How it works</h3>
         <ol>
           <li>Enter your contact info and property preferences</li>
-          <li>{mode === 'search'
-            ? 'We search for matching properties once and send results immediately'
-            : 'We search for matching properties on your schedule (daily, weekly, or monthly)'}
-          </li>
-          <li>You receive email and Telegram notifications with matching properties</li>
+          <li>Choose notification frequency: once, daily, weekly, or monthly</li>
+          <li>We search for matching properties and send you email and Telegram notifications</li>
         </ol>
       </div>
     </div>
