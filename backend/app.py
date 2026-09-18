@@ -113,6 +113,7 @@ with app.app_context():
 # Real property search using Searchapi.io (Zillow API)
 def search_properties(criteria):
     """Search for properties matching user criteria using Searchapi.io Zillow API"""
+    print("!!! SEARCH PROPERTIES FUNCTION CALLED !!!")
     searchapi_key = os.getenv('SEARCHAPI_API_KEY')
     
     print(f"=== SEARCH PROPERTIES START ===")
