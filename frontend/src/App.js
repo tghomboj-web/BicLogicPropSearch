@@ -17,7 +17,7 @@ function App() {
     bedrooms: '',
     bathrooms: '',
     min_sqft: '',
-    notification_frequency: 'once' // 'once', 'daily', 'weekly', 'monthly'
+    notification_frequency: 'daily' // 'daily', 'weekly', 'monthly'
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,7 +139,7 @@ function App() {
           <h1>🎉 {mode === 'search' ? 'Search Complete!' : 'Subscription Created!'}</h1>
           <p>{mode === 'search'
             ? 'Properties matching your criteria have been sent to your email and Telegram.'
-            : 'You have been subscribed to property notifications.'}
+            : 'You will receive property notifications on your selected schedule.'}
           </p>
           <button onClick={() => { setSubmitted(false); setMode('search'); }} className="btn">
             {mode === 'search' ? 'Search Again' : 'Create Another Subscription'}
@@ -166,21 +166,21 @@ function App() {
     <div className="container">
       <div className="header">
         <h1>🏠 Property Alerts</h1>
-        <p>Get notified when properties match your criteria</p>
+        <p>Search once or subscribe for recurring property notifications</p>
       </div>
 
       <div className="mode-toggle">
-        <button 
+        <button
           className={`mode-btn ${mode === 'search' ? 'active' : ''}`}
           onClick={() => setMode('search')}
         >
           🔍 One-time Search
         </button>
-        <button 
+        <button
           className={`mode-btn ${mode === 'subscribe' ? 'active' : ''}`}
           onClick={() => setMode('subscribe')}
         >
-          📧 Subscribe for Alerts
+          📧 Recurring Alerts
         </button>
       </div>
 
@@ -402,7 +402,6 @@ function App() {
                 value={formData.notification_frequency}
                 onChange={handleChange}
               >
-                <option value="once">One-time only</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
@@ -420,11 +419,11 @@ function App() {
         <h3>How it works</h3>
         <ol>
           <li>Enter your contact info and property preferences</li>
-          <li>{mode === 'search' 
-            ? 'We search for matching properties once and send results'
-            : 'We search for matching properties on your schedule'}
+          <li>{mode === 'search'
+            ? 'We search for matching properties once and send results immediately'
+            : 'We search for matching properties on your schedule (daily, weekly, or monthly)'}
           </li>
-          <li>You receive email and Telegram notifications</li>
+          <li>You receive email and Telegram notifications with matching properties</li>
         </ol>
       </div>
     </div>
