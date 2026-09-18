@@ -1647,8 +1647,8 @@ def process_telegram_update(update):
                 response += "2. Enter your email address\n"
                 response += "3. Click 'Connect Telegram' button\n"
                 response += "4. Copy the 6-digit code shown\n"
-                response += "5. Send it here: /connect <code>\n\n"
-                response += "Example: /connect ABC123"
+                response += "5. Send the code here (just the code, no command needed)\n\n"
+                response += "Example: ABC123"
                 send_telegram_message(chat_id, response)
             
             elif callback_data.startswith('delete_sub_'):
@@ -2034,7 +2034,7 @@ def process_telegram_update(update):
             response += "/status - View your current subscriptions\n"
             response += "/delete <id> - Delete specific subscription\n"
             response += "/deleteall - Delete all subscriptions\n"
-            response += "/connect <code> - Connect your Telegram account using a code from the website\n"
+            response += "/connect <code> - Connect your account (or just send the code)\n"
             response += "/help - Show this help message\n\n"
             response += "For subscriptions, sign up at the website first."
             send_telegram_message(chat_id, response)
@@ -2044,6 +2044,70 @@ def process_telegram_update(update):
             code = text.split()[1].strip().upper()
             logger.info(f"=== CONNECT COMMAND ===")
             logger.info(f"User {chat_id} attempting to connect with code: {code}")
+
+            # Find the connection code
+            connection_code = TelegramConnectionCode.query.filter_by(code=code, used=False).first()
+
+            if not connection_code:
+                send_telegram_message(chat_id, "❌ Invalid or expired code. Please generate a new code from the website.")
+                return
+
+            # Check if code is expired
+            if connection_code.expires_at < datetime.now():
+                send_telegram_message(chat_id, "❌ Code has expired. Please generate a new code from the website.")
+                return
+
+            # Get the user associated with this code
+            user = User.query.get(connection_code.user_id)
+            if not user:
+                send_telegram_message(chat_id, "❌ User not found. Please try again.")
+                return
+
+            # Update user's Telegram ID
+            user.telegram_id = str(chat_id)
+            connection_code.telegram_id = str(chat_id)
+            connection_code.used = True
+            db.session.commit()
+
+            logger.info(f"Successfully connected user {user.email} to Telegram ID {chat_id}")
+
+            send_telegram_message(chat_id, f"✅ Successfully connected!\n\nYour Telegram account is now linked to {user.email}.\n\nYou can now receive property notifications via Telegram.", get_main_menu_keyboard())
+
+        # Handle bare code input (without /connect prefix)
+        elif len(text) == 6 and text.isalnum():
+            # This might be a connection code without the /connect prefix
+            code = text.strip().upper()
+            logger.info(f"=== BARE CODE INPUT ===")
+            logger.info(f"User {chat_id} sent potential code: {code}")
+
+            # Find the connection code
+            connection_code = TelegramConnectionCode.query.filter_by(code=code, used=False).first()
+
+            if connection_code:
+                # Treat it as a connection code
+                # Check if code is expired
+                if connection_code.expires_at < datetime.now():
+                    send_telegram_message(chat_id, "❌ Code has expired. Please generate a new code from the website.")
+                    return
+
+                # Get the user associated with this code
+                user = User.query.get(connection_code.user_id)
+                if not user:
+                    send_telegram_message(chat_id, "❌ User not found. Please try again.")
+                    return
+
+                # Update user's Telegram ID
+                user.telegram_id = str(chat_id)
+                connection_code.telegram_id = str(chat_id)
+                connection_code.used = True
+                db.session.commit()
+
+                logger.info(f"Successfully connected user {user.email} to Telegram ID {chat_id} via bare code")
+
+                send_telegram_message(chat_id, f"✅ Successfully connected!\n\nYour Telegram account is now linked to {user.email}.\n\nYou can now receive property notifications via Telegram.", get_main_menu_keyboard())
+            else:
+                # Not a valid code, treat as unknown command
+                send_telegram_message(chat_id, "❓ Unknown command. Type /help for available commands.", get_main_menu_keyboard())
             
             # Find the connection code
             connection_code = TelegramConnectionCode.query.filter_by(code=code, used=False).first()

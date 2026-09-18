@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -26,6 +26,26 @@ function App() {
   const [telegramConnected] = useState(false);
   const [codeExpiry, setCodeExpiry] = useState(null);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+
+  // Update time remaining every second when code is active
+  useEffect(() => {
+    if (codeExpiry && telegramCode) {
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((codeExpiry.getTime() - new Date().getTime()) / 60000));
+        setTimeRemaining(remaining);
+        
+        // Clear code if expired
+        if (remaining === 0) {
+          setTelegramCode(null);
+          setCodeExpiry(null);
+          setTimeRemaining(null);
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [codeExpiry, telegramCode]);
 
   const handleChange = (e) => {
     setFormData({
@@ -81,15 +101,16 @@ function App() {
       setError('Please enter your email first');
       return;
     }
-    
+
     try {
       const response = await axios.post(`${API_URL}/generate-telegram-code`, {
         email: formData.email
       });
-      
+
       if (response.data.success) {
         setTelegramCode(response.data.code);
         setCodeExpiry(new Date(response.data.expires_at));
+        setTimeRemaining(5); // Start with 5 minutes
         setError('');
       }
     } catch (err) {
@@ -213,8 +234,9 @@ function App() {
                   <div className="code-text">Code: <strong>{telegramCode}</strong></div>
                   <div className="code-instructions">
                     1. Open Telegram bot<br/>
-                    2. Send: /connect {telegramCode}<br/>
-                    {codeExpiry && <div className="code-expiry">Expires in {Math.max(0, Math.ceil((codeExpiry - new Date()) / 60000))} minutes</div>}
+                    2. Click "Connect Account"<br/>
+                    3. Send this code: {telegramCode}<br/>
+                    {timeRemaining !== null && <div className="code-expiry">Expires in {timeRemaining} minutes</div>}
                   </div>
                   <button type="button" onClick={generateTelegramCode} className="btn-small">
                     Generate New Code
