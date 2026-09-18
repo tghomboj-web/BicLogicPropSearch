@@ -946,7 +946,9 @@ def check_api_config():
 @app.route('/api/quick-search', methods=['POST'])
 def quick_search():
     """One-time property search"""
+    print(f"=== QUICK SEARCH START ===")
     data = request.json
+    print(f"Search request data: {data}")
     try:
         # Validate required fields
         if not data.get('email'):
@@ -974,6 +976,8 @@ def quick_search():
             db.session.add(user)
             db.session.commit()
         
+        print(f"User: {user.email}")
+        
         # Search for properties
         criteria = {
             'min_price': data.get('min_price'),
@@ -985,12 +989,17 @@ def quick_search():
             'min_sqft': data.get('min_sqft')
         }
         
+        print(f"Search criteria: {criteria}")
         properties = search_properties(criteria)
+        print(f"Properties found: {len(properties)}")
         
         # Send notifications if properties found
         if properties:
+            print("Sending notifications...")
             send_email_notification(user, properties)
             send_telegram_notification(user, properties)
+        else:
+            print("No properties found, skipping notifications")
         
         return jsonify({
             'success': True,
