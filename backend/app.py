@@ -87,6 +87,42 @@ class SearchSubscription(db.Model):
             'min_sqft': self.min_sqft
         }
 
+class TelegramConnectionCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    telegram_id = db.Column(db.String(50), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    used = db.Column(db.Boolean, default=False)
+    
+    user = db.relationship('User', backref=db.backref('connection_codes', lazy=True))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'code': self.code,
+            'user_id': self.user_id,
+            'telegram_id': self.telegram_id,
+            'expires_at': self.expires_at.isoformat(),
+            'created_at': self.created_at.isoformat(),
+            'used': self.used
+        }
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'notification_frequency': self.notification_frequency,
+            'last_notified': self.last_notified.isoformat() if self.last_notified else None,
+            'created_at': self.created_at.isoformat(),
+            'min_price': self.min_price,
+            'max_price': self.max_price,
+            'zip_codes': self.zip_codes,
+            'property_type': self.property_type,
+            'bedrooms': self.bedrooms,
+            'bathrooms': self.bathrooms,
+            'min_sqft': self.min_sqft
+        }
+
 class Property(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -954,6 +990,58 @@ def check_api_config():
         'searchapi_key_prefix': searchapi_key[:4] + '...' if searchapi_key else None,
         'google_key_prefix': google_api_key[:4] + '...' if google_api_key else None
     })
+
+@app.route('/api/generate-telegram-code', methods=['POST'])
+def generate_telegram_code():
+    """Generate a unique code for Telegram account linking"""
+    logger.info("=== GENERATE TELEGRAM CODE ENDPOINT ===")
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'success': False, 'error': 'Email is required'}), 400
+    
+    try:
+        # Find or create user
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            user = User(email=email)
+            db.session.add(user)
+            db.session.commit()
+        
+        # Delete any existing unused codes for this user
+        TelegramConnectionCode.query.filter_by(user_id=user.id, used=False).delete()
+        
+        # Generate a unique 6-character code
+        import random
+        import string
+        while True:
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            if not TelegramConnectionCode.query.filter_by(code=code).first():
+                break
+        
+        # Create connection code that expires in 5 minutes
+        from datetime import timedelta
+        expires_at = datetime.now() + timedelta(minutes=5)
+        connection_code = TelegramConnectionCode(
+            code=code,
+            user_id=user.id,
+            expires_at=expires_at
+        )
+        db.session.add(connection_code)
+        db.session.commit()
+        
+        logger.info(f"Generated code {code} for user {email}, expires at {expires_at}")
+        
+        return jsonify({
+            'success': True,
+            'code': code,
+            'expires_at': expires_at.isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating Telegram code: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/quick-search', methods=['POST'])
 def quick_search():
@@ -1930,9 +2018,44 @@ def process_telegram_update(update):
             response += "/status - View your current subscriptions\n"
             response += "/delete <id> - Delete specific subscription\n"
             response += "/deleteall - Delete all subscriptions\n"
+            response += "/connect <code> - Connect your Telegram account using a code from the website\n"
             response += "/help - Show this help message\n\n"
-            response += "For subscriptions, sign up at the website first with your Telegram ID."
+            response += "For subscriptions, sign up at the website first."
             send_telegram_message(chat_id, response)
+        
+        elif text.startswith('/connect '):
+            # Handle Telegram account connection via code
+            code = text.split()[1].strip().upper()
+            logger.info(f"=== CONNECT COMMAND ===")
+            logger.info(f"User {chat_id} attempting to connect with code: {code}")
+            
+            # Find the connection code
+            connection_code = TelegramConnectionCode.query.filter_by(code=code, used=False).first()
+            
+            if not connection_code:
+                send_telegram_message(chat_id, "❌ Invalid or expired code. Please generate a new code from the website.")
+                return
+            
+            # Check if code is expired
+            if connection_code.expires_at < datetime.now():
+                send_telegram_message(chat_id, "❌ Code has expired. Please generate a new code from the website.")
+                return
+            
+            # Get the user associated with this code
+            user = User.query.get(connection_code.user_id)
+            if not user:
+                send_telegram_message(chat_id, "❌ User not found. Please try again.")
+                return
+            
+            # Update user's Telegram ID
+            user.telegram_id = str(chat_id)
+            connection_code.telegram_id = str(chat_id)
+            connection_code.used = True
+            db.session.commit()
+            
+            logger.info(f"Successfully connected user {user.email} to Telegram ID {chat_id}")
+            
+            send_telegram_message(chat_id, f"✅ Successfully connected!\n\nYour Telegram account is now linked to {user.email}.\n\nYou can now receive property notifications via Telegram.")
         
         elif text == '/status':
             if user:

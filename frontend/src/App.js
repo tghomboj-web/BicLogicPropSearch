@@ -23,6 +23,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  const [telegramCode, setTelegramCode] = useState(null);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [codeExpiry, setCodeExpiry] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -71,6 +74,27 @@ function App() {
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const generateTelegramCode = async () => {
+    if (!formData.email) {
+      setError('Please enter your email first');
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API_URL}/generate-telegram-code`, {
+        email: formData.email
+      });
+      
+      if (response.data.success) {
+        setTelegramCode(response.data.code);
+        setCodeExpiry(new Date(response.data.expires_at));
+        setError('');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to generate code');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -179,15 +203,28 @@ function App() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="telegram_id">Telegram ID</label>
-              <input
-                type="text"
-                id="telegram_id"
-                name="telegram_id"
-                value={formData.telegram_id}
-                onChange={handleChange}
-                placeholder="@username"
-              />
+              <label>Telegram Connection</label>
+              {telegramConnected ? (
+                <div className="telegram-connected">
+                  <span className="success-icon">✓</span> Connected
+                </div>
+              ) : telegramCode ? (
+                <div className="telegram-code-display">
+                  <div className="code-text">Code: <strong>{telegramCode}</strong></div>
+                  <div className="code-instructions">
+                    1. Open Telegram bot<br/>
+                    2. Send: /connect {telegramCode}<br/>
+                    {codeExpiry && <div className="code-expiry">Expires in {Math.max(0, Math.ceil((codeExpiry - new Date()) / 60000))} minutes</div>}
+                  </div>
+                  <button type="button" onClick={generateTelegramCode} className="btn-small">
+                    Generate New Code
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={generateTelegramCode} className="btn-small">
+                  Connect Telegram
+                </button>
+              )}
             </div>
           </div>
         </div>
