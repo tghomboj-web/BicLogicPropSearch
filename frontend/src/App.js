@@ -23,7 +23,7 @@ function App() {
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const [telegramCode, setTelegramCode] = useState(null);
-  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramConnected] = useState(false);
   const [codeExpiry, setCodeExpiry] = useState(null);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
 
@@ -325,20 +325,19 @@ function App() {
             </div>
           </div>
 
-            <div className="form-group">
-              <label htmlFor="bedrooms">Beds</label>
-              <input
-                type="number"
-                id="bedrooms"
-                name="bedrooms"
-                value={formData.bedrooms}
-                onChange={handleChange}
-                placeholder="2"
-                min="0"
-                className={validationErrors.bedrooms ? 'error' : ''}
-              />
-              {validationErrors.bedrooms && <span className="error-message">{validationErrors.bedrooms}</span>}
-            </div>
+          <div className="form-group">
+            <label htmlFor="bedrooms">Beds</label>
+            <input
+              type="number"
+              id="bedrooms"
+              name="bedrooms"
+              value={formData.bedrooms}
+              onChange={handleChange}
+              placeholder="2"
+              min="0"
+              className={validationErrors.bedrooms ? 'error' : ''}
+            />
+            {validationErrors.bedrooms && <span className="error-message">{validationErrors.bedrooms}</span>}
           </div>
 
           <div className="form-row">
