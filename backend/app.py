@@ -947,6 +947,7 @@ def check_api_config():
 @app.route('/api/quick-search', methods=['POST'])
 def quick_search():
     """One-time property search"""
+    print("!!! QUICK SEARCH ENDPOINT CALLED !!!")
     print(f"=== QUICK SEARCH START ===")
     data = request.json
     print(f"Search request data: {data}")
