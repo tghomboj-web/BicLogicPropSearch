@@ -108,13 +108,18 @@ function App() {
       });
 
       if (response.data.success) {
-        setTelegramCode(response.data.code);
-        const expiryDate = new Date(response.data.expires_at);
-        const now = new Date();
-        const remaining = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / 60000));
-        setCodeExpiry(expiryDate);
-        setTimeRemaining(remaining);
-        setError('');
+        if (response.data.already_connected) {
+          setTelegramConnected(true);
+          setError('');
+        } else {
+          setTelegramCode(response.data.code);
+          const expiryDate = new Date(response.data.expires_at);
+          const now = new Date();
+          const remaining = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / 60000));
+          setCodeExpiry(expiryDate);
+          setTimeRemaining(remaining);
+          setError('');
+        }
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate code');

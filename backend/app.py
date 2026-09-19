@@ -1009,6 +1009,15 @@ def generate_telegram_code():
             db.session.add(user)
             db.session.commit()
         
+        # Check if user already has Telegram linked
+        if user.telegram_id:
+            logger.info(f"User {email} already has Telegram ID linked: {user.telegram_id}")
+            return jsonify({
+                'success': True,
+                'already_connected': True,
+                'message': 'Your Telegram account is already connected'
+            })
+        
         # Delete any existing unused codes for this user
         TelegramConnectionCode.query.filter_by(user_id=user.id, used=False).delete()
         
