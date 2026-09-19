@@ -23,7 +23,7 @@ function App() {
   const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   const [telegramCode, setTelegramCode] = useState(null);
-  const [telegramConnected] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
   const [codeExpiry, setCodeExpiry] = useState(null);
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
