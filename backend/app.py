@@ -1008,6 +1008,9 @@ def generate_telegram_code():
             user = User(email=email)
             db.session.add(user)
             db.session.commit()
+            logger.info(f"Created new user with email: {email}")
+        else:
+            logger.info(f"Found existing user: {email}, telegram_id: {user.telegram_id}")
         
         # Check if user already has Telegram linked
         if user.telegram_id:
