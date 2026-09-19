@@ -815,9 +815,14 @@ def subscribe():
             user = User(
                 email=data.get('email'),
                 phone=data.get('phone'),
-                telegram_id=data.get('telegram_id')
+                telegram_id=data.get('telegram_id') if data.get('telegram_id') else None
             )
             db.session.add(user)
+            db.session.commit()
+        else:
+            # Only update phone if provided, never overwrite telegram_id with empty string
+            if data.get('phone'):
+                user.phone = data.get('phone')
             db.session.commit()
         
         # Create subscription
@@ -1084,9 +1089,14 @@ def quick_search():
             user = User(
                 email=data.get('email'),
                 phone=data.get('phone'),
-                telegram_id=data.get('telegram_id')
+                telegram_id=data.get('telegram_id') if data.get('telegram_id') else None
             )
             db.session.add(user)
+            db.session.commit()
+        else:
+            # Only update phone if provided, never overwrite telegram_id with empty string
+            if data.get('phone'):
+                user.phone = data.get('phone')
             db.session.commit()
         
         logger.info(f"User: {user.email}")
