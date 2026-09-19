@@ -109,8 +109,11 @@ function App() {
 
       if (response.data.success) {
         setTelegramCode(response.data.code);
-        setCodeExpiry(new Date(response.data.expires_at));
-        setTimeRemaining(5); // Start with 5 minutes
+        const expiryDate = new Date(response.data.expires_at);
+        const now = new Date();
+        const remaining = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / 60000));
+        setCodeExpiry(expiryDate);
+        setTimeRemaining(remaining);
         setError('');
       }
     } catch (err) {
@@ -348,7 +351,7 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="bedrooms">Beds</label>
+            <label htmlFor="bedrooms">Min Beds</label>
             <input
               type="number"
               id="bedrooms"
@@ -364,7 +367,7 @@ function App() {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="bathrooms">Baths</label>
+              <label htmlFor="bathrooms">Min Baths</label>
               <input
                 type="number"
                 id="bathrooms"
